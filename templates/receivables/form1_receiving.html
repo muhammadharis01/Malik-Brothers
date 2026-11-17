@@ -1,0 +1,203 @@
+{% extends "base.html" %}
+{% load i18n humanize %}
+
+{% block title %}{% trans "Consignment Receiving" %}{% endblock %}
+{% block page_title %}{% trans "Consignment Receiving" %}{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+
+    {% if success_consignment %}
+        {% include "partials/success_banner.html" with ref_no=success_consignment.form_no title=_("Consignment Saved") extra_info=_("Balance Receivable: Rs. ") status=success_consignment.status new_entry_url=request.path %}
+    {% endif %}
+
+    <div class="bg-white rounded-2xl border border-slate-200/70 shadow-lg shadow-slate-200/60 p-8 sm:p-12">
+        {% if errors.non_field %}
+        <div class="mb-8 p-4 rounded-xl bg-rose-50 border border-rose-300 text-rose-900 flex items-start gap-3">
+            <svg class="w-5 h-5 text-rose-600 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+            <p class="text-base font-medium">{{ errors.non_field }}</p>
+        </div>
+        {% endif %}
+
+        <form method="post" action="{% url 'receivables:form1_receiving' %}" class="space-y-10">
+            {% csrf_token %}
+
+            <!-- SECTION 1: CONSIGNMENT DETAILS -->
+            <div class="space-y-5">
+                <div class="border-b border-slate-100 pb-3">
+                    <h3 class="text-base font-bold text-[#0047AB] uppercase tracking-wide border-l-4 border-[#14B8A6] pl-3">
+                        {% trans "1. Consignment Identification" %}
+                    </h3>
+                </div>
+
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-7">
+                    <div>
+                        <label for="id_builty_no" class="block text-sm font-semibold text-slate-800 mb-2">
+                            {% trans "Karachi Builty No." %} <span class="text-rose-500 font-bold">*</span>
+                        </label>
+                        <input type="text" name="builty_no" id="id_builty_no" required autofocus
+                               value="{{ form_data.builty_no|default:'' }}"
+                               placeholder="e.g. KHI-99201"
+                               class="w-full h-12 px-4 text-base bg-white border border-slate-300 rounded-xl focus:border-[#14B8A6] focus:ring-4 focus:ring-[#40E0D0]/30 outline-none transition-all font-mono uppercase">
+                    </div>
+
+                    <div>
+                        <label for="id_customer_builty_no" class="block text-sm font-semibold text-slate-800 mb-2">
+                            {% trans "Customer Builty Reference" %}
+                        </label>
+                        <input type="text" name="customer_builty_no" id="id_customer_builty_no"
+                               value="{{ form_data.customer_builty_no|default:'' }}"
+                               placeholder="Optional"
+                               class="w-full h-12 px-4 text-base bg-white border border-slate-300 rounded-xl focus:border-[#14B8A6] focus:ring-4 focus:ring-[#40E0D0]/30 outline-none transition-all">
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-7 bg-slate-50/70 p-4 rounded-xl border border-slate-200">
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-600 mb-1">
+                            {% trans "Receiving Reference No." %}
+                        </label>
+                        <input type="text" readonly value="{% trans 'Auto-generated on Save' %}"
+                               class="w-full h-11 px-4 text-sm bg-white text-slate-500 border border-slate-200 rounded-xl cursor-not-allowed italic">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-600 mb-1">
+                            {% trans "Receiving Date" %}
+                        </label>
+                        <input type="text" readonly value="{% now 'd M Y' %}"
+                               class="w-full h-11 px-4 text-sm bg-white text-slate-700 border border-slate-200 rounded-xl cursor-not-allowed font-medium">
+                    </div>
+                </div>
+            </div>
+
+            <!-- SECTION 2: CUSTOMER & DELIVERY -->
+            <div class="space-y-5 pt-2">
+                <div class="border-b border-slate-100 pb-3">
+                    <h3 class="text-base font-bold text-[#0047AB] uppercase tracking-wide border-l-4 border-[#14B8A6] pl-3">
+                        {% trans "2. Customer & Delivery Mode" %}
+                    </h3>
+                </div>
+
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-7">
+                    <div>
+                        <label for="id_customer_type" class="block text-sm font-semibold text-slate-800 mb-2">
+                            {% trans "Customer Category" %} <span class="text-rose-500 font-bold">*</span>
+                        </label>
+                        <select name="customer_type" id="id_customer_type" required
+                                hx-get="{% url 'receivables:htmx_form1_customer_details' %}"
+                                hx-target="#customer-fields-container"
+                                hx-swap="outerHTML"
+                                hx-include="[name='delivery_mode'], [name='customer_id']"
+                                class="w-full h-12 px-4 text-base bg-white border border-slate-300 rounded-xl focus:border-[#14B8A6] focus:ring-4 focus:ring-[#40E0D0]/30 outline-none transition-all">
+                            <option value="Regular" {% if init_type != 'Walk-in' %}selected{% endif %}>{% trans "Regular Customer" %}</option>
+                            <option value="Walk-in" {% if form_data.customer_type == 'Walk-in' %}selected{% endif %}>{% trans "Walk-in Customer" %}</option>
+                        </select>
+                    </div>
+
+                    <div>
+                        <label for="id_delivery_mode" class="block text-sm font-semibold text-slate-800 mb-2">
+                            {% trans "Delivery Mode" %} <span class="text-rose-500 font-bold">*</span>
+                        </label>
+                        <select name="delivery_mode" id="id_delivery_mode" required
+                                hx-get="{% url 'receivables:htmx_form1_customer_details' %}"
+                                hx-target="#customer-fields-container"
+                                hx-swap="outerHTML"
+                                hx-include="[name='customer_type'], [name='customer_id']"
+                                class="w-full h-12 px-4 text-base bg-white border border-slate-300 rounded-xl focus:border-[#14B8A6] focus:ring-4 focus:ring-[#40E0D0]/30 outline-none transition-all">
+                            {% for val, label in delivery_modes %}
+                            <option value="{{ val }}" {% if form_data.delivery_mode == val %}selected{% endif %}>{{ label }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Dynamic Customer Details (LOV or Walk-in fields) -->
+                {% include "receivables/partials/form1_customer_fields.html" with customer_type=init_type customer=init_customer customers=customers delivery_mode=init_mode form_data=form_data %}
+            </div>
+
+            <!-- SECTION 3: CHARGES & RECEIVABLE -->
+            <div class="space-y-5 pt-2">
+                <div class="border-b border-slate-100 pb-3">
+                    <h3 class="text-base font-bold text-[#0047AB] uppercase tracking-wide border-l-4 border-[#14B8A6] pl-3">
+                        {% trans "3. Freight Charges & Balance" %}
+                    </h3>
+                </div>
+
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-7">
+                    <div>
+                        <label for="id_total_amount" class="block text-sm font-semibold text-slate-800 mb-2">
+                            {% trans "Total Freight Charges (Rs.)" %} <span class="text-rose-500 font-bold">*</span>
+                        </label>
+                        <input type="number" step="0.01" min="0" name="total_amount" id="id_total_amount" required
+                               value="{{ form_data.total_amount|default:'0' }}"
+                               hx-get="{% url 'receivables:htmx_form1_balance_calc' %}"
+                               hx-target="#balance-display-container"
+                               hx-swap="outerHTML"
+                               hx-trigger="keyup changed delay:300ms, change"
+                               hx-include="[name='advance_received']"
+                               class="w-full h-12 px-4 text-lg font-bold bg-white border border-slate-300 rounded-xl focus:border-[#14B8A6] focus:ring-4 focus:ring-[#40E0D0]/30 outline-none transition-all font-mono">
+                    </div>
+
+                    <div>
+                        <label for="id_advance_received" class="block text-sm font-semibold text-slate-800 mb-2">
+                            {% trans "Advance Received (Rs.)" %}
+                        </label>
+                        <input type="number" step="0.01" min="0" name="advance_received" id="id_advance_received"
+                               value="{{ form_data.advance_received|default:'0' }}"
+                               hx-get="{% url 'receivables:htmx_form1_balance_calc' %}"
+                               hx-target="#balance-display-container"
+                               hx-swap="outerHTML"
+                               hx-trigger="keyup changed delay:300ms, change"
+                               hx-include="[name='total_amount']"
+                               class="w-full h-12 px-4 text-lg font-bold bg-white border border-slate-300 rounded-xl focus:border-[#14B8A6] focus:ring-4 focus:ring-[#40E0D0]/30 outline-none transition-all font-mono">
+                    </div>
+                </div>
+
+                <!-- Balance Receivable Highlight Card -->
+                {% include "receivables/partials/form1_balance_display.html" with balance=init_balance %}
+            </div>
+
+            <!-- SECTION 4: CONDITION & REMARKS -->
+            <div class="space-y-5 pt-2">
+                <div class="border-b border-slate-100 pb-3">
+                    <h3 class="text-base font-bold text-[#0047AB] uppercase tracking-wide border-l-4 border-[#14B8A6] pl-3">
+                        {% trans "4. Condition & Remarks" %}
+                    </h3>
+                </div>
+
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-7">
+                    <div>
+                        <label for="id_goods_condition" class="block text-sm font-semibold text-slate-800 mb-2">
+                            {% trans "Goods Condition at Receipt" %} <span class="text-rose-500 font-bold">*</span>
+                        </label>
+                        <select name="goods_condition" id="id_goods_condition" required
+                                class="w-full h-12 px-4 text-base bg-white border border-slate-300 rounded-xl focus:border-[#14B8A6] focus:ring-4 focus:ring-[#40E0D0]/30 outline-none transition-all font-medium">
+                            {% for val, label in goods_conditions %}
+                            <option value="{{ val }}" {% if form_data.goods_condition == val %}selected{% endif %}>{{ label }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <div>
+                        <label for="id_remarks" class="block text-sm font-semibold text-slate-800 mb-2">
+                            {% trans "Remarks" %}
+                        </label>
+                        <input type="text" name="remarks" id="id_remarks"
+                               value="{{ form_data.remarks|default:'' }}"
+                               placeholder="{% trans 'Optional notes' %}"
+                               class="w-full h-12 px-4 text-base bg-white border border-slate-300 rounded-xl focus:border-[#14B8A6] focus:ring-4 focus:ring-[#40E0D0]/30 outline-none transition-all">
+                    </div>
+                </div>
+            </div>
+
+            <!-- Submit Button -->
+            <div class="pt-4 border-t border-slate-100 flex items-center justify-end">
+                <button type="submit" class="w-full sm:w-auto h-12 px-10 bg-[#0047AB] hover:bg-[#003A8C] text-white text-base font-semibold rounded-xl transition-all flex items-center justify-center gap-2">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg>
+                    <span>{% trans "Save Consignment" %}</span>
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

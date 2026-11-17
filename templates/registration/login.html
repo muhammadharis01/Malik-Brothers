@@ -1,0 +1,52 @@
+{% extends "base.html" %}
+{% load i18n %}
+
+{% block title %}{% trans "Sign In" %}{% endblock %}
+{% block page_title %}{% trans "Staff Authentication" %}{% endblock %}
+
+{% block content %}
+<div class="max-w-md mx-auto my-8 bg-white p-8 rounded-2xl shadow-sm border border-slate-200">
+    <div class="text-center mb-8">
+        <div class="inline-flex p-3 bg-[#E8F0FB] text-[#0047AB] rounded-2xl mb-3 shadow-inner">
+            <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/>
+            </svg>
+        </div>
+        <h2 class="text-2xl font-bold text-slate-900">{% trans "Sign in to your account" %}</h2>
+        <p class="text-sm text-slate-500 mt-1">{% trans "Enter your credentials to access your designated role" %}</p>
+    </div>
+
+    {% if form.errors %}
+    <div class="mb-6 p-4 rounded-xl bg-rose-50 border border-rose-200 text-rose-800 text-sm">
+        <p class="font-semibold">{% trans "Invalid username or password. Please try again." %}</p>
+    </div>
+    {% endif %}
+
+    <form method="post" action="{% url 'login' %}" class="space-y-6">
+        {% csrf_token %}
+        <div>
+            <label for="id_username" class="block text-base font-semibold text-slate-700 mb-2">
+                {% trans "Username" %} <span class="text-rose-500">*</span>
+            </label>
+            <input type="text" name="username" id="id_username" autofocus required
+                   class="w-full h-12 px-4 text-lg rounded-xl border border-slate-300 focus:border-[#14B8A6] focus:ring-2 focus:ring-[#40E0D0]/30 outline-none transition-all"
+                   placeholder="e.g. admin, receiving_clerk">
+        </div>
+
+        <div>
+            <label for="id_password" class="block text-base font-semibold text-slate-700 mb-2">
+                {% trans "Password" %} <span class="text-rose-500">*</span>
+            </label>
+            <input type="password" name="password" id="id_password" required
+                   class="w-full h-12 px-4 text-lg rounded-xl border border-slate-300 focus:border-[#14B8A6] focus:ring-2 focus:ring-[#40E0D0]/30 outline-none transition-all"
+                   placeholder="••••••••">
+        </div>
+
+        <button type="submit" class="w-full h-12 bg-[#0047AB] hover:bg-[#003A8C] text-white text-lg font-semibold rounded-xl transition-all flex items-center justify-center gap-2">
+            <span>{% trans "Sign In" %}</span>
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"/></svg>
+        </button>
+    </form>
+</div>
+{% endblock %}
+

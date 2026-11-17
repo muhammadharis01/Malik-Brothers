@@ -1,0 +1,15 @@
+# Environment
+.env
+.venv/
+env/
+venv/
+*.pyc
+__pycache__/
+*.sqlite3
+
+# macOS
+.DS_Store
+
+# Static assets compiled
+staticfiles/
+

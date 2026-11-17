@@ -1,0 +1,134 @@
+{% load static i18n %}
+<!DOCTYPE html>
+<html lang="en" class="bg-transparent">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}{% trans "Consignment Receiving" %}{% endblock %} | Malik Brothers</title>
+    <!-- Tailwind CSS -->
+    <link rel="stylesheet" href="{% static 'css/tailwind.css' %}?v={% now 'U' %}">
+    <!-- HTMX -->
+    <script src="{% static 'js/htmx.min.js' %}"></script>
+    <style>
+        #sidebar{background:#0A2A66 !important;color:#E2E8F0;position:sticky;top:0;height:100vh;overflow-y:auto;align-self:flex-start}
+        form.space-y-5,form.space-y-8,form.space-y-10{display:flex;flex-direction:column;gap:2rem}
+        form .grid{column-gap:1.75rem;row-gap:1.75rem}
+        body{background:linear-gradient(135deg,#F2FBFA,#EEF4FC 60%,#F2FBFA) !important}
+        header{border-bottom:3px solid #14B8A6 !important}
+        header h2{color:#0047AB !important}
+        #sidebar a:hover{background:#123A85}
+        table th,table td{padding:1.1rem 1.5rem !important}
+        table td{font-size:1rem}
+        table th{font-size:.8rem;letter-spacing:.05em;background:#E8F0FB !important;color:#0047AB !important}
+        form label{display:block;margin-bottom:.5rem}
+        form .grid>div{display:flex;flex-direction:column}
+        form input:not([type=hidden]),form select,form textarea{min-height:3rem}
+    </style>
+    {% block extra_head %}{% endblock %}
+</head>
+<body class="min-h-screen bg-gradient-to-br from-[#F2FBFA] via-[#EEF4FC] to-[#F2FBFA] font-sans text-slate-800 antialiased" hx-headers='{"X-CSRFToken": "{{ csrf_token }}"}'>
+    <div class="min-h-screen w-full flex flex-row items-start">
+        <!-- Sticky Left Sidepanel (Completely decoupled from main scroll, independently scrollable) -->
+        <aside id="sidebar" class="w-64 min-w-[16rem] max-w-[16rem] bg-[#0A2A66] text-slate-200 shrink-0 sticky top-0 h-screen flex flex-col justify-between overflow-y-auto border-r border-[#17408F] select-none">
+            <div>
+                <!-- Brand Header -->
+                <div class="px-6 py-6 border-b border-[#17408F]">
+                    <div class="flex items-center space-x-3">
+                        <span class="p-2 bg-[#0047AB] rounded-xl text-white">
+                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
+                            </svg>
+                        </span>
+                        <h1 class="text-xl font-bold tracking-wide text-white">MALIK BROTHERS</h1>
+                    </div>
+                </div>
+
+                <!-- Nav Links -->
+                <nav class="px-3 py-6 space-y-1.5 text-base">
+                    <!-- Consignment Receiving (Form 1) -->
+                    <a href="{% url 'receivables:form1_receiving' %}"
+                       class="flex items-center gap-3.5 px-4 py-3 rounded-xl font-medium transition-all {% if request.resolver_match.app_name == 'receivables' %}bg-[#0047AB] text-white{% else %}text-slate-300 hover:bg-[#123A85] hover:text-white{% endif %}">
+                        <svg class="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/></svg>
+                        <span>{% trans "Consignment Receiving" %}</span>
+                    </a>
+
+                    <!-- Customer Master -->
+                    <a href="{% url 'masters:customer_master' %}"
+                       class="flex items-center gap-3.5 px-4 py-3 rounded-xl font-medium transition-all {% if request.resolver_match.app_name == 'masters' %}bg-[#0047AB] text-white{% else %}text-slate-300 hover:bg-[#123A85] hover:text-white{% endif %}">
+                        <svg class="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"/></svg>
+                        <span>{% trans "Customer Master" %}</span>
+                    </a>
+                </nav>
+            </div>
+        </aside>
+
+        <!-- Main Content Area (Independently scrollable) -->
+        <div class="flex-1 min-w-0 min-h-screen flex flex-col bg-transparent">
+            <!-- Top bar -->
+            <header class="bg-white border-b border-slate-200 px-8 py-4 flex items-center justify-between flex-shrink-0">
+                <div class="flex items-center space-x-4">
+                    <h2 class="text-xl font-bold text-slate-900 tracking-tight">
+                        {% block page_title %}{% trans "Consignment Receiving" %}{% endblock %}
+                    </h2>
+                </div>
+            </header>
+
+            <!-- Alerts & Messages -->
+            <div class="w-full max-w-7xl mx-auto px-6 sm:px-10 pt-4">
+                {% if messages %}
+                <div class="space-y-3">
+                    {% for message in messages %}
+                    <div class="p-4 rounded-xl border flex items-start gap-3 shadow-xs {% if message.tags == 'success' %}bg-emerald-50 border-emerald-300 text-emerald-900{% elif message.tags == 'warning' %}bg-amber-50 border-amber-300 text-amber-900{% elif message.tags == 'error' %}bg-rose-50 border-rose-300 text-rose-900{% else %}bg-blue-50 border-blue-300 text-[#003A8C]{% endif %}">
+                        <span class="mt-0.5 flex-shrink-0">
+                            {% if message.tags == 'success' %}
+                            <svg class="w-6 h-6 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                            {% elif message.tags == 'warning' %}
+                            <svg class="w-6 h-6 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
+                            {% elif message.tags == 'error' %}
+                            <svg class="w-6 h-6 text-rose-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                            {% else %}
+                            <svg class="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                            {% endif %}
+                        </span>
+                        <div class="text-base font-medium leading-relaxed">{{ message }}</div>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% endif %}
+            </div>
+
+            <!-- Page Body -->
+            <main class="flex-1 w-full max-w-7xl mx-auto px-6 sm:px-10 py-6">
+                {% block content %}{% endblock %}
+            </main>
+
+            <!-- Footer -->
+            <footer class="bg-white border-t border-slate-200 py-4 px-8 text-center text-sm text-slate-400 flex-shrink-0">
+                <p>&copy; {% now "Y" %} Malik Brothers</p>
+            </footer>
+        </div>
+    </div>
+
+    <!-- Clipboard Script -->
+    <script>
+        function copyToClipboard(text, btnElement) {
+            navigator.clipboard.writeText(text).then(function() {
+                const originalText = btnElement.innerHTML;
+                btnElement.innerHTML = `
+                    <svg class="w-5 h-5 text-emerald-600 inline mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+                    </svg> Copied!
+                `;
+                btnElement.classList.add('bg-emerald-100', 'text-emerald-800');
+                setTimeout(() => {
+                    btnElement.innerHTML = originalText;
+                    btnElement.classList.remove('bg-emerald-100', 'text-emerald-800');
+                }, 2000);
+            }).catch(function(err) {
+                console.error('Could not copy text: ', err);
+            });
+        }
+    </script>
+    {% block extra_scripts %}{% endblock %}
+</body>
+</html>

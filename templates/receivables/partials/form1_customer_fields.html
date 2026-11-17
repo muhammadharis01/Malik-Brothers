@@ -1,0 +1,102 @@
+{% load i18n humanize %}
+
+<div id="customer-fields-container" class="space-y-6">
+    {% if customer_type == 'Regular' %}
+        <!-- Customer Name (LOV) -->
+        <div>
+            <label for="id_customer_id" class="block text-sm font-semibold text-slate-800 mb-2">
+                {% trans "Customer Name" %} <span class="text-rose-500 font-bold">*</span>
+            </label>
+            <select name="customer_id" id="id_customer_id" required
+                    hx-get="{% url 'receivables:htmx_form1_customer_details' %}"
+                    hx-target="#customer-fields-container"
+                    hx-swap="outerHTML"
+                    hx-include="[name='customer_type'], [name='delivery_mode']"
+                    class="w-full h-12 px-4 text-base bg-white border border-slate-300 rounded-xl focus:border-[#14B8A6] focus:ring-4 focus:ring-[#40E0D0]/30 outline-none transition-all">
+                <option value="">-- {% trans "Select Regular Customer" %} --</option>
+                {% for c in customers %}
+                <option value="{{ c.customer_id }}" {% if customer and customer.customer_id == c.customer_id %}selected{% endif %}>
+                    {{ c.customer_name }} {% if c.area_region %}({{ c.area_region }}){% endif %}
+                </option>
+                {% endfor %}
+            </select>
+        </div>
+
+        {% if credit_warning %}
+        <div class="p-4 bg-amber-50 border border-amber-300 rounded-xl text-amber-900 text-sm flex items-start gap-3">
+            <svg class="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
+            <div class="font-medium">{{ credit_warning }}</div>
+        </div>
+        {% endif %}
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-7">
+            <!-- Contact Number (Fetched / Read-only) -->
+            <div>
+                <label class="block text-sm font-semibold text-slate-800 mb-2">
+                    {% trans "Contact Number" %}
+                </label>
+                <input type="text" name="contact_number" readonly
+                       value="{{ customer.contact_number|default:'' }}"
+                       placeholder="{% trans 'Auto-filled from Master' %}"
+                       class="w-full h-12 px-4 text-base bg-slate-100 text-slate-700 border border-slate-200 rounded-xl cursor-not-allowed select-none">
+            </div>
+
+            <!-- Delivery Address (Fetched if Deliver at Address, Read-only) -->
+            <div>
+                <label class="block text-sm font-semibold text-slate-800 mb-2">
+                    {% trans "Delivery Address" %}
+                </label>
+                {% if delivery_mode == 'Deliver at Address' %}
+                <input type="text" name="delivery_address" readonly
+                       value="{% if customer %}{% firstof customer.delivery_address customer.address %}{% endif %}"
+                       placeholder="{% trans 'Auto-filled from Master' %}"
+                       class="w-full h-12 px-4 text-base bg-slate-100 text-slate-700 border border-slate-200 rounded-xl cursor-not-allowed select-none">
+                {% else %}
+                <input type="text" disabled value="{% trans 'Office Collection (Not required)' %}"
+                       class="w-full h-12 px-4 text-base bg-slate-100 text-slate-400 border border-slate-200 rounded-xl cursor-not-allowed">
+                <input type="hidden" name="delivery_address" value="">
+                {% endif %}
+            </div>
+        </div>
+
+    {% else %}
+        <!-- Walk-in Customer Fields -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-7">
+            <div>
+                <label for="id_customer_name" class="block text-sm font-semibold text-slate-800 mb-2">
+                    {% trans "Customer Name" %} <span class="text-rose-500 font-bold">*</span>
+                </label>
+                <input type="text" name="customer_name" id="id_customer_name" required value="{{ form_data.customer_name|default:'' }}"
+                       class="w-full h-12 px-4 text-base bg-white border border-slate-300 rounded-xl focus:border-[#14B8A6] focus:ring-4 focus:ring-[#40E0D0]/30 outline-none transition-all"
+                       placeholder="{% trans 'Enter walk-in customer name' %}">
+            </div>
+
+            <div>
+                <label for="id_contact_number" class="block text-sm font-semibold text-slate-800 mb-2">
+                    {% trans "Contact Number" %} <span class="text-rose-500 font-bold">*</span>
+                </label>
+                <input type="text" name="contact_number" id="id_contact_number" required value="{{ form_data.contact_number|default:'' }}"
+                       class="w-full h-12 px-4 text-base bg-white border border-slate-300 rounded-xl focus:border-[#14B8A6] focus:ring-4 focus:ring-[#40E0D0]/30 outline-none transition-all"
+                       placeholder="{% trans 'e.g. 0300-1234567' %}">
+            </div>
+        </div>
+
+        <div>
+            <label for="id_delivery_address" class="block text-sm font-semibold text-slate-800 mb-2">
+                {% trans "Delivery Address" %}
+                {% if delivery_mode == 'Deliver at Address' %}
+                    <span class="text-rose-500 font-bold">*</span>
+                {% endif %}
+            </label>
+            {% if delivery_mode == 'Deliver at Address' %}
+            <input type="text" name="delivery_address" id="id_delivery_address" required value="{{ form_data.delivery_address|default:'' }}"
+                   placeholder="{% trans 'Delivery premises address' %}"
+                   class="w-full h-12 px-4 text-base bg-white border border-slate-300 rounded-xl focus:border-[#14B8A6] focus:ring-4 focus:ring-[#40E0D0]/30 outline-none transition-all">
+            {% else %}
+            <input type="text" disabled value="{% trans 'Office Collection (Not required)' %}"
+                   class="w-full h-12 px-4 text-base bg-slate-100 text-slate-400 border border-slate-200 rounded-xl cursor-not-allowed">
+            <input type="hidden" name="delivery_address" value="">
+            {% endif %}
+        </div>
+    {% endif %}
+</div>

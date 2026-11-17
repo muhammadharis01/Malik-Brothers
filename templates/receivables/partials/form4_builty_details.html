@@ -1,0 +1,132 @@
+{% load i18n humanize %}
+
+<div id="form4-builty-details-container" class="space-y-6">
+    {% if error %}
+    <div class="p-4 rounded-xl bg-rose-50 border-2 border-rose-300 text-rose-900 flex items-start gap-3">
+        <svg class="w-6 h-6 text-rose-600 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
+        <div>
+            <h4 class="text-sm font-bold uppercase tracking-wider text-rose-800">{% trans "Not Eligible for Settlement" %}</h4>
+            <p class="text-base font-medium mt-0.5">{{ error }}</p>
+        </div>
+    </div>
+    {% elif consignment %}
+    <!-- Fetched Read-Only Details Panel -->
+    <div class="p-6 bg-rose-50/50 border border-rose-200 rounded-2xl space-y-6">
+        <div class="flex items-center justify-between border-b border-rose-200 pb-4">
+            <h3 class="text-lg font-bold text-slate-900 flex items-center gap-2">
+                <svg class="w-5 h-5 text-rose-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
+                <span>{% trans "Eligible Claim Consignment" %}</span>
+            </h3>
+            <div class="flex items-center gap-2">
+                <span class="text-xs font-bold px-3 py-1 rounded-full uppercase {% if consignment.goods_condition == 'Lost' %}bg-rose-100 text-rose-800 border border-rose-300{% else %}bg-orange-100 text-orange-800 border border-orange-300{% endif %}">
+                    {{ consignment.goods_condition }}
+                </span>
+                <span class="text-xs font-semibold px-2.5 py-1 rounded-full bg-slate-200 text-slate-800">
+                    {{ consignment.status }}
+                </span>
+            </div>
+        </div>
+
+        <!-- Details Grid -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 text-sm">
+            <div>
+                <label class="block text-xs font-semibold text-slate-500 uppercase">{% trans "Customer Name" %}</label>
+                <div class="mt-1 font-bold text-slate-900 bg-white p-2.5 rounded-2xl border border-slate-200">
+                    {{ consignment.customer_name }}
+                </div>
+            </div>
+            <div>
+                <label class="block text-xs font-semibold text-slate-500 uppercase">{% trans "Contact Number" %}</label>
+                <div class="mt-1 font-medium text-slate-800 bg-white p-2.5 rounded-2xl border border-slate-200">
+                    {{ consignment.contact_number }}
+                </div>
+            </div>
+            <div>
+                <label class="block text-xs font-semibold text-slate-500 uppercase">{% trans "Karachi Builty No." %}</label>
+                <div class="mt-1 font-mono font-bold text-slate-900 bg-white p-2.5 rounded-2xl border border-slate-200">
+                    {{ consignment.builty_no }}
+                </div>
+            </div>
+            <div>
+                <label class="block text-xs font-semibold text-slate-500 uppercase">{% trans "Total Freight" %}</label>
+                <div class="mt-1 font-bold text-slate-900 bg-white p-2.5 rounded-2xl border border-slate-200">
+                    Rs. {{ consignment.total_amount|floatformat:2|intcomma }}
+                </div>
+            </div>
+            <div>
+                <label class="block text-xs font-semibold text-slate-500 uppercase">{% trans "Advance Received" %}</label>
+                <div class="mt-1 font-medium text-slate-800 bg-white p-2.5 rounded-2xl border border-slate-200">
+                    Rs. {{ consignment.advance_received|floatformat:2|intcomma }}
+                </div>
+            </div>
+            <div>
+                <label class="block text-xs font-semibold text-slate-500 uppercase">{% trans "Receivable Balance" %}</label>
+                <div class="mt-1 font-bold text-slate-900 bg-white p-2.5 rounded-2xl border border-slate-200">
+                    Rs. {{ consignment.receivable_amount|floatformat:2|intcomma }}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Settlement Entry Section -->
+    <div class="space-y-6 pt-2">
+        <h3 class="text-lg font-bold text-slate-900 border-b border-slate-200 pb-3">
+            {% trans "Settlement Approval & Compensation" %}
+        </h3>
+
+        <!-- Compensation Paid -->
+        <div>
+            <label for="id_compensation_paid" class="block text-base font-semibold text-slate-800 mb-2">
+                {% trans "Compensation Paid to Customer (Rs.)" %} <span class="text-rose-500 font-bold">*</span>
+            </label>
+            <p class="text-xs text-slate-500 mb-2">
+                {% trans "Agreed amount paid by Malik Brothers to settle the loss/damage" %}
+            </p>
+            <input type="number" step="0.01" min="0" name="compensation_paid" id="id_compensation_paid" required
+                   placeholder="0.00"
+                   class="w-full h-12 px-4 text-xl font-bold bg-white border border-slate-300 rounded-xl focus:border-rose-600 focus:ring-2 focus:ring-rose-100 outline-none transition-all font-mono">
+        </div>
+
+        <!-- Settlement Date -->
+        <div>
+            <label class="block text-base font-semibold text-slate-700 mb-2">
+                {% trans "Settlement Date" %}
+            </label>
+            <input type="text" readonly value="{% now 'd M Y' %} ({% trans 'Today' %})"
+                   class="w-full h-12 px-4 text-base bg-slate-100 text-slate-700 border border-slate-300 rounded-xl cursor-not-allowed select-none shadow-inner font-medium">
+        </div>
+
+        <!-- Remarks -->
+        <div>
+            <label for="id_remarks" class="block text-base font-semibold text-slate-800 mb-2">
+                {% trans "Remarks / Approver Details" %} <span class="text-rose-500 font-bold">*</span>
+            </label>
+            <p class="text-xs text-slate-500 mb-2">{% trans "State the justification, damage reason, and management approver" %}</p>
+            <textarea name="remarks" id="id_remarks" rows="3" required
+                      placeholder="{% trans 'e.g. Approved by Branch Manager per inspection report #...' %}"
+                      class="w-full p-4 text-base bg-white border border-slate-300 rounded-xl focus:border-rose-600 focus:ring-2 focus:ring-rose-100 outline-none transition-all"></textarea>
+        </div>
+
+        <!-- Notice -->
+        <div class="p-4 bg-amber-50 border border-amber-200 rounded-xl text-amber-900 text-sm flex items-center gap-3">
+            <svg class="w-5 h-5 text-amber-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+            <span>{% trans "Upon saving, this consignment will be permanently marked CLOSED and no further payments can be collected." %}</span>
+        </div>
+
+        <!-- Submit Button -->
+        <div class="pt-4">
+            <button type="submit" class="w-full h-14 bg-rose-600 hover:bg-rose-700 text-white text-xl font-bold rounded-2xl transition-all flex items-center justify-center gap-3">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg>
+                <span>{% trans "Confirm Settlement & Close Builty" %}</span>
+            </button>
+        </div>
+    </div>
+    {% else %}
+    <div class="p-8 text-center text-slate-400 border-2 border-dashed border-slate-200 rounded-2xl">
+        <svg class="w-10 h-10 mx-auto text-slate-300 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+        <p class="text-base font-medium">{% trans "Type the Receiving Reference No. above to check eligibility and load claim details." %}</p>
+        <p class="text-xs text-slate-400 mt-1">{% trans "Note: Form 4 only accepts Lost or Damaged builties." %}</p>
+    </div>
+    {% endif %}
+</div>
+

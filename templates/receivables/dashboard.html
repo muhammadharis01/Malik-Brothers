@@ -1,0 +1,346 @@
+{% extends "base.html" %}
+{% load i18n humanize %}
+
+{% block title %}{% trans "Dashboard" %}{% endblock %}
+{% block page_title %}{% trans "Multan Operations Dashboard" %}{% endblock %}
+
+{% block extra_head %}
+<!-- Chart.js via CDN -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.2/dist/chart.umd.min.js"></script>
+{% endblock %}
+
+{% block content %}
+<div class="space-y-10">
+    <!-- Top Action Shortcuts -->
+    <div class="flex items-center justify-between flex-wrap gap-4 bg-white p-4 rounded-2xl border border-slate-200 shadow-xs">
+        <div>
+            <h3 class="text-lg font-bold text-slate-800">{% trans "Quick Actions" %}</h3>
+            <p class="text-xs text-slate-500">{% trans "Direct access to operations based on your role" %}</p>
+        </div>
+        <div class="flex items-center gap-2 flex-wrap">
+            {% if is_receiving_clerk or is_admin %}
+            <a href="{% url 'receivables:form1_receiving' %}" class="inline-flex items-center gap-2 px-4 py-2.5 bg-[#0047AB] hover:bg-[#003A8C] text-white rounded-xl font-semibold text-sm shadow-sm transition-all">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m8-8H4"/></svg>
+                <span>{% trans "Form 1: Receive Builty" %}</span>
+            </a>
+            {% endif %}
+
+            {% if is_delivery_clerk or is_admin %}
+            <a href="{% url 'receivables:form2_delivery' %}" class="inline-flex items-center gap-2 px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-semibold text-sm shadow-sm transition-all">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4"/></svg>
+                <span>{% trans "Form 2: Delivery & Pay" %}</span>
+            </a>
+            {% endif %}
+
+            {% if is_accounts_clerk or is_admin %}
+            <a href="{% url 'receivables:form3_recovery' %}" class="inline-flex items-center gap-2 px-4 py-2.5 bg-blue-600 hover:bg-[#1F5FC4] text-white rounded-xl font-semibold text-sm shadow-sm transition-all">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z"/></svg>
+                <span>{% trans "Form 3: Agent Recovery" %}</span>
+            </a>
+            {% endif %}
+
+            {% if is_manager or is_admin %}
+            <a href="{% url 'receivables:form4_settlement' %}" class="inline-flex items-center gap-2 px-4 py-2.5 bg-rose-600 hover:bg-rose-700 text-white rounded-xl font-semibold text-sm shadow-sm transition-all">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
+                <span>{% trans "Form 4: Settlement" %}</span>
+            </a>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- KPI Cards Grid -->
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-5">
+        <!-- KPI 1: Total Outstanding -->
+        <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-xs relative overflow-hidden flex flex-col justify-between">
+            <div class="flex items-center justify-between">
+                <span class="text-sm font-semibold text-slate-500 uppercase tracking-wider">{% trans "Total Outstanding" %}</span>
+                <span class="p-2.5 bg-[#E8F0FB] text-[#0047AB] rounded-xl">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                </span>
+            </div>
+            <div class="mt-4">
+                <div class="text-xs font-semibold text-[#0047AB]">PKR</div>
+                <div class="text-2xl lg:text-3xl font-extrabold text-slate-900 tracking-tight">
+                    Rs. {{ total_outstanding|floatformat:0|intcomma }}
+                </div>
+                <p class="text-xs text-slate-400 mt-1">{% trans "Active open balance" %}</p>
+            </div>
+        </div>
+
+        <!-- KPI 2: Collected Today -->
+        <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-xs relative overflow-hidden flex flex-col justify-between">
+            <div class="flex items-center justify-between">
+                <span class="text-sm font-semibold text-slate-500 uppercase tracking-wider">{% trans "Collected Today" %}</span>
+                <span class="p-2.5 bg-emerald-50 text-emerald-600 rounded-xl">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                </span>
+            </div>
+            <div class="mt-4">
+                <div class="text-xs font-semibold text-emerald-600">PKR</div>
+                <div class="text-2xl lg:text-3xl font-extrabold text-slate-900 tracking-tight">
+                    Rs. {{ collected_today|floatformat:0|intcomma }}
+                </div>
+                <p class="text-xs text-slate-400 mt-1">{% trans "Counter & agent receipts" %}</p>
+            </div>
+        </div>
+
+        <!-- KPI 3: Builties Received Today -->
+        <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-xs relative overflow-hidden flex flex-col justify-between">
+            <div class="flex items-center justify-between">
+                <span class="text-sm font-semibold text-slate-500 uppercase tracking-wider">{% trans "Received Today" %}</span>
+                <span class="p-2.5 bg-blue-50 text-blue-600 rounded-xl">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/></svg>
+                </span>
+            </div>
+            <div class="mt-4">
+                <div class="text-2xl lg:text-3xl font-extrabold text-slate-900 tracking-tight">
+                    {{ builties_today }}
+                </div>
+                <p class="text-xs text-slate-400 mt-1">{% trans "Arrived from Karachi" %}</p>
+            </div>
+        </div>
+
+        <!-- KPI 4: Open Builties -->
+        <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-xs relative overflow-hidden flex flex-col justify-between">
+            <div class="flex items-center justify-between">
+                <span class="text-sm font-semibold text-slate-500 uppercase tracking-wider">{% trans "Open Builties" %}</span>
+                <span class="p-2.5 bg-amber-50 text-amber-600 rounded-xl">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                </span>
+            </div>
+            <div class="mt-4">
+                <div class="text-2xl lg:text-3xl font-extrabold text-slate-900 tracking-tight">
+                    {{ open_builties_count }}
+                </div>
+                <p class="text-xs text-slate-400 mt-1">{% trans "Pending payment / delivery" %}</p>
+            </div>
+        </div>
+
+        <!-- KPI 5: Lost / Damaged Pending -->
+        <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-xs relative overflow-hidden flex flex-col justify-between">
+            <div class="flex items-center justify-between">
+                <span class="text-sm font-semibold text-slate-500 uppercase tracking-wider">{% trans "Lost / Damaged" %}</span>
+                <span class="p-2.5 bg-rose-50 text-rose-600 rounded-xl">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
+                </span>
+            </div>
+            <div class="mt-4">
+                <div class="text-2xl lg:text-3xl font-extrabold text-rose-600 tracking-tight">
+                    {{ lost_damaged_pending }}
+                </div>
+                <p class="text-xs text-slate-400 mt-1">{% trans "Flagged for Form 4" %}</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Charts Row -->
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-7">
+        <!-- 14-Day Collections Bar Chart -->
+        <div class="lg:col-span-2 bg-white p-6 rounded-2xl border border-slate-200 shadow-xs">
+            <div class="flex items-center justify-between mb-4">
+                <div>
+                    <h3 class="text-lg font-bold text-slate-900">{% trans "14-Day Collections Trend" %}</h3>
+                    <p class="text-xs text-slate-500">{% trans "Daily recovered cash at counter and through agents" %}</p>
+                </div>
+                <span class="text-xs font-semibold px-2.5 py-1 bg-[#E8F0FB] text-[#003A8C] rounded-2xl">{% trans "Last 14 Days" %}</span>
+            </div>
+            <div class="h-72">
+                <canvas id="collectionsChart"></canvas>
+            </div>
+        </div>
+
+        <!-- Outstanding by Area Chart -->
+        <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-xs">
+            <div class="flex items-center justify-between mb-4">
+                <div>
+                    <h3 class="text-lg font-bold text-slate-900">{% trans "Outstanding by Area" %}</h3>
+                    <p class="text-xs text-slate-500">{% trans "Distribution across delivery zones" %}</p>
+                </div>
+            </div>
+            <div class="h-72 flex items-center justify-center">
+                <canvas id="areaChart"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <!-- 10 Oldest Unpaid Builties Table -->
+    <div class="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden">
+        <div class="px-6 py-5 border-b border-slate-200 flex items-center justify-between flex-wrap gap-4">
+            <div>
+                <h3 class="text-lg font-bold text-slate-900">{% trans "10 Oldest Unpaid Builties" %}</h3>
+                <p class="text-xs text-slate-500">{% trans "Open consignments requiring urgent follow-up or recovery" %}</p>
+            </div>
+            <a href="{% url 'receivables:report_open_builties' %}" class="text-sm font-semibold text-[#0047AB] hover:text-[#002F73] flex items-center gap-1">
+                <span>{% trans "View all open builties" %}</span>
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+            </a>
+        </div>
+
+        <div class="overflow-x-auto">
+            <table class="w-full text-left text-sm text-slate-600">
+                <thead class="bg-slate-50 text-xs uppercase font-semibold text-slate-500 border-b border-slate-200">
+                    <tr>
+                        <th class="px-6 py-4">{% trans "Ref No." %}</th>
+                        <th class="px-6 py-4">{% trans "Karachi Builty" %}</th>
+                        <th class="px-6 py-4">{% trans "Customer" %}</th>
+                        <th class="px-6 py-4">{% trans "Received Date" %}</th>
+                        <th class="px-6 py-4 text-right">{% trans "Total Charges" %}</th>
+                        <th class="px-6 py-4 text-right">{% trans "Advance" %}</th>
+                        <th class="px-6 py-4 text-right">{% trans "Receivable Balance" %}</th>
+                        <th class="px-6 py-4 text-center">{% trans "Delivery Status" %}</th>
+                        <th class="px-6 py-4 text-center">{% trans "Condition" %}</th>
+                        <th class="px-6 py-4 text-center">{% trans "Action" %}</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-100">
+                    {% for b in oldest_unpaid %}
+                    <tr class="hover:bg-slate-50/80 transition-colors">
+                        <td class="px-6 py-4 font-mono font-bold text-[#0047AB] whitespace-nowrap">
+                            {{ b.form_no }}
+                        </td>
+                        <td class="px-6 py-4 font-semibold text-slate-900 whitespace-nowrap">
+                            {{ b.builty_no }}
+                        </td>
+                        <td class="px-6 py-4 font-medium text-slate-800">
+                            {{ b.customer_name }}
+                            {% if b.customer %}
+                            <span class="block text-xs text-slate-400">{{ b.customer.area_region|default:"Regular" }}</span>
+                            {% else %}
+                            <span class="block text-xs text-slate-400">{% trans "Walk-in" %}</span>
+                            {% endif %}
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-slate-600">
+                            {{ b.received_date|date:"d M Y" }}
+                        </td>
+                        <td class="px-6 py-4 text-right whitespace-nowrap font-medium">
+                            Rs. {{ b.total_amount|floatformat:2|intcomma }}
+                        </td>
+                        <td class="px-6 py-4 text-right whitespace-nowrap text-slate-500">
+                            Rs. {{ b.advance_received|floatformat:2|intcomma }}
+                        </td>
+                        <td class="px-6 py-4 text-right whitespace-nowrap font-bold text-slate-900">
+                            Rs. {{ b.receivable_amount|floatformat:2|intcomma }}
+                        </td>
+                        <td class="px-6 py-4 text-center whitespace-nowrap">
+                            {% if b.delivery_status == 'Delivered' %}
+                            <span class="inline-flex px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-100 text-emerald-800">
+                                {% trans "Delivered" %}
+                            </span>
+                            {% else %}
+                            <span class="inline-flex px-2.5 py-1 rounded-full text-xs font-semibold bg-amber-100 text-amber-800">
+                                {% trans "Not Delivered" %}
+                            </span>
+                            {% endif %}
+                        </td>
+                        <td class="px-6 py-4 text-center whitespace-nowrap">
+                            {% if b.goods_condition == 'Received OK' %}
+                            <span class="inline-flex px-2 py-0.5 rounded-full text-xs font-medium bg-emerald-50 text-emerald-700 border border-emerald-200">
+                                {% trans "OK" %}
+                            </span>
+                            {% elif b.goods_condition == 'Damaged' %}
+                            <span class="inline-flex px-2 py-0.5 rounded-full text-xs font-medium bg-orange-100 text-orange-800">
+                                {% trans "Damaged" %}
+                            </span>
+                            {% else %}
+                            <span class="inline-flex px-2 py-0.5 rounded-full text-xs font-medium bg-rose-100 text-rose-800">
+                                {% trans "Lost" %}
+                            </span>
+                            {% endif %}
+                        </td>
+                        <td class="px-6 py-4 text-center whitespace-nowrap">
+                            {% if b.delivery_status == 'Not Delivered' and is_delivery_clerk %}
+                            <a href="{% url 'receivables:form2_delivery' %}?form_no={{ b.form_no }}" class="text-xs font-semibold text-emerald-600 hover:text-emerald-800 bg-emerald-50 hover:bg-emerald-100 px-3 py-1.5 rounded-2xl border border-emerald-200">
+                                {% trans "Deliver / Pay" %}
+                            </a>
+                            {% elif b.delivery_status == 'Delivered' and is_accounts_clerk %}
+                            <a href="{% url 'receivables:form3_recovery' %}?form_no={{ b.form_no }}" class="text-xs font-semibold text-blue-600 hover:text-[#0047AB] bg-blue-50 hover:bg-[#D3E2F7] px-3 py-1.5 rounded-2xl border border-blue-200">
+                                {% trans "Recover" %}
+                            </a>
+                            {% else %}
+                            <span class="text-xs text-slate-400">&mdash;</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="10" class="px-6 py-12 text-center text-slate-400">
+                            <p class="text-base font-semibold">{% trans "No open unpaid builties!" %}</p>
+                            <p class="text-xs mt-1">{% trans "All arriving consignments are fully delivered and cleared." %}</p>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+    // 14-Day Collections Bar Chart
+    const ctxCollections = document.getElementById('collectionsChart');
+    if (ctxCollections) {
+        new Chart(ctxCollections, {
+            type: 'bar',
+            data: {
+                labels: {{ chart_dates|safe }},
+                datasets: [{
+                    label: '{% trans "Collections (Rs.)" %}',
+                    data: {{ chart_collections|safe }},
+                    backgroundColor: 'rgba(99, 102, 241, 0.85)',
+                    hoverBackgroundColor: 'rgba(79, 70, 229, 1)',
+                    borderRadius: 8,
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { display: false }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        ticks: {
+                            callback: function(value) {
+                                return 'Rs. ' + value.toLocaleString();
+                            }
+                        }
+                    }
+                }
+            }
+        });
+    }
+
+    // Outstanding by Area Doughnut Chart
+    const ctxArea = document.getElementById('areaChart');
+    if (ctxArea) {
+        new Chart(ctxArea, {
+            type: 'doughnut',
+            data: {
+                labels: {{ area_labels|safe }},
+                datasets: [{
+                    data: {{ area_values|safe }},
+                    backgroundColor: [
+                        '#6366f1', '#06b6d4', '#10b981', '#f59e0b', '#ec4899', '#8b5cf6'
+                    ],
+                    borderWidth: 2,
+                    borderColor: '#ffffff'
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'bottom',
+                        labels: { boxWidth: 12, font: { size: 11 } }
+                    }
+                }
+            }
+        });
+    }
+</script>
+{% endblock %}
+
