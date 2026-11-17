@@ -186,3 +186,14 @@ UNFOLD = {
         ],
     },
 }
+
+
+# Print errors to the console (visible in Render logs) even when DEBUG is False
+LOGGING = {
+    'version': 1,
+    'disable_existing_loggers': False,
+    'handlers': {'console': {'class': 'logging.StreamHandler'}},
+    'loggers': {
+        'django.request': {'handlers': ['console'], 'level': 'ERROR', 'propagate': False},
+    },
+}
