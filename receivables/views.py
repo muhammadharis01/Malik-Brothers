@@ -121,9 +121,11 @@ def _safe_balance(data):
     try:
         t = Decimal(data.get('total_amount') or '0')
         a = Decimal(data.get('advance_received') or '0')
+        l = Decimal(data.get('loading_charges') or '0')
+        g = Decimal(data.get('godam_charges') or '0')
     except Exception:
         return Decimal('0.00')
-    return max(Decimal('0.00'), t - a)
+    return max(Decimal('0.00'), t + l + g - a)
 
 
 def form1_receiving(request):
@@ -147,6 +149,8 @@ def form1_receiving(request):
         delivery_address = request.POST.get('delivery_address', '').strip()
         total_amount = request.POST.get('total_amount', '0').strip()
         advance_received = request.POST.get('advance_received', '0').strip()
+        loading_charges = request.POST.get('loading_charges', '0').strip()
+        godam_charges = request.POST.get('godam_charges', '0').strip()
         goods_condition = request.POST.get('goods_condition', GoodsCondition.RECEIVED_OK)
         remarks = request.POST.get('remarks', '').strip()
 
@@ -161,6 +165,8 @@ def form1_receiving(request):
             'delivery_address': delivery_address,
             'total_amount': total_amount,
             'advance_received': advance_received,
+            'loading_charges': loading_charges,
+            'godam_charges': godam_charges,
             'goods_condition': goods_condition,
             'remarks': remarks,
         }
@@ -171,6 +177,8 @@ def form1_receiving(request):
                 customer_type=customer_type,
                 total_amount=Decimal(total_amount or '0'),
                 advance_received=Decimal(advance_received or '0'),
+                loading_charges=Decimal(loading_charges or '0'),
+                godam_charges=Decimal(godam_charges or '0'),
                 goods_condition=goods_condition,
                 delivery_mode=delivery_mode,
                 customer_id=int(customer_id) if (customer_type == CustomerCategory.REGULAR and customer_id) else None,
@@ -191,6 +199,29 @@ def form1_receiving(request):
         except Exception as e:
             errors['non_field'] = str(e)
 
+    # Existing Builties Search & List
+    query = request.GET.get('q', '').strip()
+    status_filter = request.GET.get('status', '').strip()
+    delivery_filter = request.GET.get('delivery_status', '').strip()
+
+    builties = Consignment.objects.all().order_by('-received_date', '-form_no')
+    if query:
+        builties = builties.filter(
+            Q(form_no__icontains=query) |
+            Q(builty_no__icontains=query) |
+            Q(customer_builty_no__icontains=query) |
+            Q(customer_name__icontains=query) |
+            Q(contact_number__icontains=query)
+        )
+    if status_filter:
+        builties = builties.filter(status=status_filter)
+    if delivery_filter:
+        builties = builties.filter(delivery_status=delivery_filter)
+
+    paginator = Paginator(builties, 15)
+    page_number = request.GET.get('page')
+    page_obj = paginator.get_page(page_number)
+
     context = {
         'customers': customers,
         'customer_categories': CustomerCategory.choices,
@@ -204,8 +235,53 @@ def form1_receiving(request):
         'init_mode': form_data.get('delivery_mode') or DeliveryMode.DELIVER_AT_ADDRESS,
         'init_customer': CustomerMaster.objects.filter(pk=form_data['customer_id']).first() if form_data.get('customer_id') else None,
         'init_balance': _safe_balance(form_data),
+        # Builties list context
+        'page_obj': page_obj,
+        'query': query,
+        'status_filter': status_filter,
+        'delivery_filter': delivery_filter,
+        'status_choices': ConsignmentStatus.choices,
+        'delivery_statuses': DeliveryStatus.choices,
+        'total_builties_count': Consignment.objects.count(),
+        'total_found': builties.count(),
     }
     return render(request, 'receivables/form1_receiving.html', context)
+
+
+def builty_search(request):
+    """
+    Search existing builties (read-only): by Receiving Ref No., Karachi builty no.,
+    customer builty ref, customer name or contact number.
+    """
+    query = request.GET.get('q', '').strip()
+    status_filter = request.GET.get('status', '').strip()
+    delivery_filter = request.GET.get('delivery_status', '').strip()
+
+    builties = Consignment.objects.all().order_by('-received_date', '-form_no')
+    if query:
+        builties = builties.filter(
+            Q(form_no__icontains=query) |
+            Q(builty_no__icontains=query) |
+            Q(customer_builty_no__icontains=query) |
+            Q(customer_name__icontains=query) |
+            Q(contact_number__icontains=query)
+        )
+    if status_filter:
+        builties = builties.filter(status=status_filter)
+    if delivery_filter:
+        builties = builties.filter(delivery_status=delivery_filter)
+
+    page_obj = Paginator(builties, 15).get_page(request.GET.get('page'))
+    context = {
+        'page_obj': page_obj,
+        'query': query,
+        'status_filter': status_filter,
+        'delivery_filter': delivery_filter,
+        'status_choices': ConsignmentStatus.choices,
+        'delivery_statuses': DeliveryStatus.choices,
+        'total_found': builties.count(),
+    }
+    return render(request, 'receivables/builty_search.html', context)
 
 
 def htmx_form1_customer_details(request):
@@ -245,18 +321,20 @@ def htmx_form1_customer_details(request):
 def htmx_form1_balance_calc(request):
     """
     HTMX partial: recalculates balance receivable live.
+    Balance = Freight + Loading/Unloading + Godam - Advance.
     """
-    try:
-        total = Decimal(request.GET.get('total_amount', '0') or '0')
-    except Exception:
-        total = Decimal('0.00')
+    def _dec(name):
+        try:
+            return Decimal(request.GET.get(name, '0') or '0')
+        except Exception:
+            return Decimal('0.00')
 
-    try:
-        advance = Decimal(request.GET.get('advance_received', '0') or '0')
-    except Exception:
-        advance = Decimal('0.00')
+    total = _dec('total_amount')
+    advance = _dec('advance_received')
+    loading = _dec('loading_charges')
+    godam = _dec('godam_charges')
 
-    balance = max(Decimal('0.00'), total - advance)
+    balance = max(Decimal('0.00'), total + loading + godam - advance)
     error = None
     if advance > total:
         error = _("Advance cannot exceed Total Freight Charges.")
@@ -264,6 +342,8 @@ def htmx_form1_balance_calc(request):
     context = {
         'total': total,
         'advance': advance,
+        'loading': loading,
+        'godam': godam,
         'balance': balance,
         'error': error,
     }

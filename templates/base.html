@@ -14,6 +14,24 @@
         form.space-y-5,form.space-y-8,form.space-y-10{display:flex;flex-direction:column;gap:2rem}
         form .grid{column-gap:1.75rem;row-gap:1.75rem}
         body{background:linear-gradient(135deg,#F2FBFA,#EEF4FC 60%,#F2FBFA) !important}
+        #nav-toggle{display:none}
+        #nav-overlay{display:none}
+        @media (max-width:1023px){
+            #sidebar{position:fixed !important;left:0;top:0;z-index:50;transform:translateX(-100%);transition:transform .25s ease;box-shadow:0 0 40px rgba(0,0,0,.35)}
+            body.nav-open #sidebar{transform:translateX(0)}
+            #nav-overlay{position:fixed;inset:0;background:rgba(10,42,102,.5);z-index:40}
+            body.nav-open #nav-overlay{display:block}
+            #nav-toggle{display:inline-flex}
+            header{padding-left:1rem !important;padding-right:1rem !important}
+        }
+        @media (max-width:640px){
+            main{padding-left:1rem !important;padding-right:1rem !important}
+            main .p-8,main .sm\:p-12{padding:1.25rem !important}
+            form.flex{flex-wrap:wrap}
+            form.flex input,form.flex select{width:100% !important}
+            table th,table td{padding:.8rem 1rem !important}
+            footer{padding-left:1rem;padding-right:1rem}
+        }
         header{border-bottom:3px solid #14B8A6 !important}
         header h2{color:#0047AB !important}
         #sidebar a:hover{background:#123A85}
@@ -27,6 +45,7 @@
     {% block extra_head %}{% endblock %}
 </head>
 <body class="min-h-screen bg-gradient-to-br from-[#F2FBFA] via-[#EEF4FC] to-[#F2FBFA] font-sans text-slate-800 antialiased" hx-headers='{"X-CSRFToken": "{{ csrf_token }}"}'>
+    <div id="nav-overlay" onclick="document.body.classList.remove('nav-open')"></div>
     <div class="min-h-screen w-full flex flex-row items-start">
         <!-- Sticky Left Sidepanel (Completely decoupled from main scroll, independently scrollable) -->
         <aside id="sidebar" class="w-64 min-w-[16rem] max-w-[16rem] bg-[#0A2A66] text-slate-200 shrink-0 sticky top-0 h-screen flex flex-col justify-between overflow-y-auto border-r border-[#17408F] select-none">
@@ -47,7 +66,7 @@
                 <nav class="px-3 py-6 space-y-1.5 text-base">
                     <!-- Consignment Receiving (Form 1) -->
                     <a href="{% url 'receivables:form1_receiving' %}"
-                       class="flex items-center gap-3.5 px-4 py-3 rounded-xl font-medium transition-all {% if request.resolver_match.app_name == 'receivables' %}bg-[#0047AB] text-white{% else %}text-slate-300 hover:bg-[#123A85] hover:text-white{% endif %}">
+                       class="flex items-center gap-3.5 px-4 py-3 rounded-xl font-medium transition-all {% if request.resolver_match.url_name == 'form1_receiving' or request.resolver_match.url_name == 'form1_receiving_direct' %}bg-[#0047AB] text-white{% else %}text-slate-300 hover:bg-[#123A85] hover:text-white{% endif %}">
                         <svg class="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/></svg>
                         <span>{% trans "Consignment Receiving" %}</span>
                     </a>
@@ -66,7 +85,12 @@
         <div class="flex-1 min-w-0 min-h-screen flex flex-col bg-transparent">
             <!-- Top bar -->
             <header class="bg-white border-b border-slate-200 px-8 py-4 flex items-center justify-between flex-shrink-0">
-                <div class="flex items-center space-x-4">
+                <div class="flex items-center gap-3">
+                    <button id="nav-toggle" type="button" aria-label="{% trans 'Menu' %}"
+                            onclick="document.body.classList.toggle('nav-open')"
+                            class="items-center justify-center w-11 h-11 rounded-xl border border-slate-200 bg-white text-[#0047AB]">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 12h16M4 18h16"/></svg>
+                    </button>
                     <h2 class="text-xl font-bold text-slate-900 tracking-tight">
                         {% block page_title %}{% trans "Consignment Receiving" %}{% endblock %}
                     </h2>
@@ -109,6 +133,11 @@
         </div>
     </div>
 
+    <script>
+        document.querySelectorAll('#sidebar a').forEach(function (a) {
+            a.addEventListener('click', function () { document.body.classList.remove('nav-open'); });
+        });
+    </script>
     <!-- Clipboard Script -->
     <script>
         function copyToClipboard(text, btnElement) {

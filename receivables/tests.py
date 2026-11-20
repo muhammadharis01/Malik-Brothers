@@ -386,3 +386,59 @@ class Form1UiFlowTests(TestCase):
             'contact_number': '0311', 'delivery_mode': 'Collect from Office',
             'total_amount': '10', 'advance_received': '0', 'goods_condition': 'Received OK'})
         self.assertEqual(Consignment.objects.filter(builty_no='KHI-2').count(), 1)
+
+
+class ExtraChargesAndListTests(TestCase):
+    def setUp(self):
+        self.customer = CustomerMaster.objects.create(
+            customer_name='Charge Test Co', contact_number='0300-1111111', area_region='Cantt')
+
+    def _save(self, builty, **extra):
+        data = {'builty_no': builty, 'customer_type': 'Regular', 'customer_id': self.customer.pk,
+                'delivery_mode': 'Collect from Office', 'total_amount': '10000',
+                'advance_received': '1000', 'goods_condition': 'Received OK'}
+        data.update(extra)
+        return self.client.post(reverse('receivables:form1_receiving'), data)
+
+    def test_loading_and_godam_added_to_balance(self):
+        self._save('CH-1', loading_charges='500', godam_charges='250')
+        c = Consignment.objects.get(builty_no='CH-1')
+        self.assertEqual(c.loading_charges, Decimal('500.00'))
+        self.assertEqual(c.godam_charges, Decimal('250.00'))
+        self.assertEqual(c.receivable_amount, Decimal('9750.00'))  # 10000+500+250-1000
+
+    def test_payments_reduce_balance_including_charges(self):
+        from receivables import services
+        self._save('CH-2', loading_charges='500', godam_charges='250')
+        c = Consignment.objects.get(builty_no='CH-2')
+        c, _r = services.process_delivery_and_payment(c.form_no, 'Delivered', Decimal('1500'))
+        self.assertEqual(c.receivable_amount, Decimal('8250.00'))
+        c, _r = services.process_agent_recovery(c.form_no, AgentMaster.objects.create(
+            agent_name='A', contact_number='1', area_region='Cantt').pk, Decimal('8250'))
+        self.assertEqual(c.receivable_amount, Decimal('0.00'))
+        self.assertEqual(c.status, 'Closed')
+
+    def test_negative_charges_refused(self):
+        self._save('CH-3', loading_charges='-5')
+        self.assertFalse(Consignment.objects.filter(builty_no='CH-3').exists())
+
+    def test_balance_endpoint_includes_charges(self):
+        r = self.client.get(reverse('receivables:htmx_form1_balance_calc'),
+                            {'total_amount': '10000', 'advance_received': '1000',
+                             'loading_charges': '500', 'godam_charges': '250'})
+        self.assertContains(r, '9,750.00')
+
+    def test_customer_list_shows_outstanding_and_edit(self):
+        self._save('CH-4', loading_charges='500', godam_charges='250')
+        r = self.client.get(reverse('masters:customer_master'))
+        self.assertContains(r, '9,750.00')
+        self.assertContains(r, reverse('masters:customer_edit', args=[self.customer.pk]))
+        r = self.client.get(reverse('masters:customer_edit', args=[self.customer.pk]))
+        self.assertEqual(r.status_code, 200)
+
+    def test_builty_search(self):
+        self._save('SRCH-77')
+        r = self.client.get(reverse('receivables:form1_receiving'), {'q': 'SRCH-77'})
+        self.assertContains(r, 'SRCH-77')
+        r = self.client.get(reverse('receivables:form1_receiving'), {'q': 'nomatch'})
+        self.assertContains(r, 'No builties found')

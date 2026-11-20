@@ -84,6 +84,18 @@ class Consignment(models.Model):
         default=Decimal('0.00'),
         verbose_name=_('Advance Received')
     )
+    loading_charges = models.DecimalField(
+        max_digits=14,
+        decimal_places=2,
+        default=Decimal('0.00'),
+        verbose_name=_('Loading/Unloading Charges')
+    )
+    godam_charges = models.DecimalField(
+        max_digits=14,
+        decimal_places=2,
+        default=Decimal('0.00'),
+        verbose_name=_('Godam Charges')
+    )
     receivable_amount = models.DecimalField(
         max_digits=14,
         decimal_places=2,
@@ -153,10 +165,23 @@ class Consignment(models.Model):
                 condition=Q(receivable_amount__gte=Decimal('0.00')),
                 name='consignment_receivable_gte_zero'
             ),
+            models.CheckConstraint(
+                condition=Q(loading_charges__gte=Decimal('0.00')),
+                name='consignment_loading_gte_zero'
+            ),
+            models.CheckConstraint(
+                condition=Q(godam_charges__gte=Decimal('0.00')),
+                name='consignment_godam_gte_zero'
+            ),
         ]
 
     def __str__(self):
         return f"{self.form_no} - {self.builty_no} ({self.customer_name})"
+
+    @property
+    def gross_amount(self) -> Decimal:
+        """Freight + Loading/Unloading + Godam charges: the full amount billed to the customer."""
+        return self.total_amount + self.loading_charges + self.godam_charges
 
     @property
     def cumulative_received(self) -> Decimal:

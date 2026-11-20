@@ -64,7 +64,7 @@ def calculate_opening_balance(consignment: Consignment) -> Decimal:
         consignment.receipts.aggregate(Sum('amount_received'))['amount_received__sum']
         or Decimal('0.00')
     )
-    opening = consignment.total_amount - consignment.advance_received - total_receipts
+    opening = consignment.gross_amount - consignment.advance_received - total_receipts
     return max(Decimal('0.00'), opening)
 
 
@@ -111,6 +111,8 @@ def create_consignment(
     customer_type: str,
     total_amount: Decimal,
     advance_received: Decimal = Decimal('0.00'),
+    loading_charges: Decimal = Decimal('0.00'),
+    godam_charges: Decimal = Decimal('0.00'),
     goods_condition: str = GoodsCondition.RECEIVED_OK,
     delivery_mode: str = DeliveryMode.COLLECT_FROM_OFFICE,
     customer_id: Optional[int] = None,
@@ -128,7 +130,13 @@ def create_consignment(
     """
     total_amount = Decimal(str(total_amount))
     advance_received = Decimal(str(advance_received or '0.00'))
+    loading_charges = Decimal(str(loading_charges or '0.00'))
+    godam_charges = Decimal(str(godam_charges or '0.00'))
 
+    if loading_charges < Decimal('0.00'):
+        raise ValidationError(_("Loading/Unloading Charges cannot be negative."))
+    if godam_charges < Decimal('0.00'):
+        raise ValidationError(_("Godam Charges cannot be negative."))
     if total_amount < Decimal('0.00'):
         raise ValidationError(_("Total Freight Charges cannot be negative."))
     if advance_received < Decimal('0.00'):
@@ -162,7 +170,7 @@ def create_consignment(
             c_address = ''
 
         # Perform credit check for regular customer
-        balance = total_amount - advance_received
+        balance = total_amount + loading_charges + godam_charges - advance_received
         has_warning, warning_msg = check_customer_credit(customer_obj, balance)
         if has_warning:
             action = getattr(settings, 'CREDIT_CHECK_ACTION', 'WARN')
@@ -184,7 +192,7 @@ def create_consignment(
             c_address = ''
 
     form_no = generate_form_no()
-    initial_receivable = total_amount - advance_received
+    initial_receivable = total_amount + loading_charges + godam_charges - advance_received
 
     audit_user = user if (user and getattr(user, 'is_authenticated', False)) else None
 
@@ -201,6 +209,8 @@ def create_consignment(
         delivery_address=c_address,
         total_amount=total_amount,
         advance_received=advance_received,
+        loading_charges=loading_charges,
+        godam_charges=godam_charges,
         receivable_amount=initial_receivable,
         goods_condition=goods_condition,
         delivery_status=DeliveryStatus.NOT_DELIVERED,
@@ -279,7 +289,7 @@ def process_delivery_and_payment(
     )
     consignment.receivable_amount = max(
         Decimal('0.00'),
-        consignment.total_amount - consignment.advance_received - total_receipts
+        consignment.gross_amount - consignment.advance_received - total_receipts
     )
 
     # Rule: Builty is Closed when Delivered and receivable = 0
@@ -346,7 +356,7 @@ def process_agent_recovery(
     )
     consignment.receivable_amount = max(
         Decimal('0.00'),
-        consignment.total_amount - consignment.advance_received - total_receipts
+        consignment.gross_amount - consignment.advance_received - total_receipts
     )
 
     # Rule: Builty is Closed when Delivered and receivable = 0

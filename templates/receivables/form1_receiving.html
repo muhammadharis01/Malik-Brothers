@@ -123,32 +123,42 @@
                     </h3>
                 </div>
 
-                <div class="grid grid-cols-1 sm:grid-cols-2 gap-7">
+                <div id="charges-grid" class="grid grid-cols-1 sm:grid-cols-2 gap-7"
+                     hx-get="{% url 'receivables:htmx_form1_balance_calc' %}"
+                     hx-trigger="input delay:300ms, change"
+                     hx-include="#charges-grid input"
+                     hx-target="#balance-display-container"
+                     hx-swap="outerHTML">
                     <div>
                         <label for="id_total_amount" class="block text-sm font-semibold text-slate-800 mb-2">
                             {% trans "Total Freight Charges (Rs.)" %} <span class="text-rose-500 font-bold">*</span>
                         </label>
                         <input type="number" step="0.01" min="0" name="total_amount" id="id_total_amount" required
                                value="{{ form_data.total_amount|default:'0' }}"
-                               hx-get="{% url 'receivables:htmx_form1_balance_calc' %}"
-                               hx-target="#balance-display-container"
-                               hx-swap="outerHTML"
-                               hx-trigger="keyup changed delay:300ms, change"
-                               hx-include="[name='advance_received']"
                                class="w-full h-12 px-4 text-lg font-bold bg-white border border-slate-300 rounded-xl focus:border-[#14B8A6] focus:ring-4 focus:ring-[#40E0D0]/30 outline-none transition-all font-mono">
                     </div>
-
                     <div>
                         <label for="id_advance_received" class="block text-sm font-semibold text-slate-800 mb-2">
                             {% trans "Advance Received (Rs.)" %}
                         </label>
                         <input type="number" step="0.01" min="0" name="advance_received" id="id_advance_received"
                                value="{{ form_data.advance_received|default:'0' }}"
-                               hx-get="{% url 'receivables:htmx_form1_balance_calc' %}"
-                               hx-target="#balance-display-container"
-                               hx-swap="outerHTML"
-                               hx-trigger="keyup changed delay:300ms, change"
-                               hx-include="[name='total_amount']"
+                               class="w-full h-12 px-4 text-lg font-bold bg-white border border-slate-300 rounded-xl focus:border-[#14B8A6] focus:ring-4 focus:ring-[#40E0D0]/30 outline-none transition-all font-mono">
+                    </div>
+                    <div>
+                        <label for="id_loading_charges" class="block text-sm font-semibold text-slate-800 mb-2">
+                            {% trans "Loading/Unloading Charges (Rs.)" %}
+                        </label>
+                        <input type="number" step="0.01" min="0" name="loading_charges" id="id_loading_charges"
+                               value="{{ form_data.loading_charges|default:'0' }}"
+                               class="w-full h-12 px-4 text-lg font-bold bg-white border border-slate-300 rounded-xl focus:border-[#14B8A6] focus:ring-4 focus:ring-[#40E0D0]/30 outline-none transition-all font-mono">
+                    </div>
+                    <div>
+                        <label for="id_godam_charges" class="block text-sm font-semibold text-slate-800 mb-2">
+                            {% trans "Godam Charges (Rs.)" %}
+                        </label>
+                        <input type="number" step="0.01" min="0" name="godam_charges" id="id_godam_charges"
+                               value="{{ form_data.godam_charges|default:'0' }}"
                                class="w-full h-12 px-4 text-lg font-bold bg-white border border-slate-300 rounded-xl focus:border-[#14B8A6] focus:ring-4 focus:ring-[#40E0D0]/30 outline-none transition-all font-mono">
                     </div>
                 </div>
@@ -198,6 +208,123 @@
                 </button>
             </div>
         </form>
+    </div>
+
+    <!-- Existing Builties List Table -->
+    <div class="bg-white rounded-2xl border border-slate-200/70 shadow-lg shadow-slate-200/60 overflow-hidden">
+        <div class="px-6 py-4 border-b border-slate-200 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+            <div class="flex items-center gap-3">
+                <h3 class="text-lg font-bold text-slate-900">{% trans "Existing Builties" %}</h3>
+                <span class="text-xs font-semibold px-3 py-1 bg-slate-100 text-slate-600 rounded-2xl">
+                    {% trans "Total:" %} {{ total_builties_count }}
+                </span>
+            </div>
+
+            <!-- Search & Filter Bar -->
+            <form method="get" action="{% url 'receivables:form1_receiving' %}" class="flex flex-wrap items-center gap-3">
+                <input type="text" name="q" value="{{ query }}" placeholder="{% trans 'Search Ref No., Builty No., Customer...' %}"
+                       class="h-10 px-3 text-sm rounded-xl border border-slate-300 focus:border-[#14B8A6] outline-none w-56 sm:w-72">
+                <select name="status" class="h-10 px-3 text-sm rounded-xl border border-slate-300 focus:border-[#14B8A6] outline-none">
+                    <option value="">-- {% trans "Builty Status" %} --</option>
+                    {% for val, label in status_choices %}
+                    <option value="{{ val }}" {% if status_filter == val %}selected{% endif %}>{{ label }}</option>
+                    {% endfor %}
+                </select>
+                <select name="delivery_status" class="h-10 px-3 text-sm rounded-xl border border-slate-300 focus:border-[#14B8A6] outline-none">
+                    <option value="">-- {% trans "Delivery Status" %} --</option>
+                    {% for val, label in delivery_statuses %}
+                    <option value="{{ val }}" {% if delivery_filter == val %}selected{% endif %}>{{ label }}</option>
+                    {% endfor %}
+                </select>
+                <button type="submit" class="h-10 px-4 bg-[#0047AB] hover:bg-[#003A8C] text-white text-sm font-semibold rounded-xl transition-all">
+                    {% trans "Search" %}
+                </button>
+                {% if query or status_filter or delivery_filter %}
+                <a href="{% url 'receivables:form1_receiving' %}" class="h-10 px-3 text-slate-500 hover:text-slate-700 text-sm flex items-center">
+                    {% trans "Clear" %}
+                </a>
+                {% endif %}
+            </form>
+        </div>
+
+        <div class="overflow-x-auto" style="overflow-x:auto">
+            <table class="w-full min-w-[1500px] text-left text-base text-slate-600 whitespace-nowrap" style="border-collapse:separate;border-spacing:0">
+                <thead class="bg-slate-50 text-xs uppercase font-semibold text-slate-500 border-b border-slate-200">
+                    <tr>
+                        <th class="px-6 py-3.5">{% trans "Ref No." %}</th>
+                        <th class="px-6 py-3.5">{% trans "Date" %}</th>
+                        <th class="px-6 py-3.5">{% trans "Karachi Builty No." %}</th>
+                        <th class="px-6 py-3.5">{% trans "Customer" %}</th>
+                        <th class="px-6 py-3.5">{% trans "Contact" %}</th>
+                        <th class="px-6 py-3.5">{% trans "Delivery Mode" %}</th>
+                        <th class="px-6 py-3.5 text-right">{% trans "Freight (Rs.)" %}</th>
+                        <th class="px-6 py-3.5 text-right">{% trans "Loading (Rs.)" %}</th>
+                        <th class="px-6 py-3.5 text-right">{% trans "Godam (Rs.)" %}</th>
+                        <th class="px-6 py-3.5 text-right">{% trans "Advance (Rs.)" %}</th>
+                        <th class="px-6 py-3.5 text-right">{% trans "Balance (Rs.)" %}</th>
+                        <th class="px-6 py-3.5 text-center">{% trans "Condition" %}</th>
+                        <th class="px-6 py-3.5 text-center">{% trans "Delivery" %}</th>
+                        <th class="px-6 py-3.5 text-center">{% trans "Status" %}</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-100">
+                    {% for b in page_obj %}
+                    <tr class="hover:bg-slate-50/80 transition-colors">
+                        <td class="px-6 py-3.5 font-mono font-bold text-[#0047AB]">{{ b.form_no }}</td>
+                        <td class="px-6 py-3.5 text-slate-700 whitespace-nowrap">{{ b.received_date|date:"d M Y" }}</td>
+                        <td class="px-6 py-3.5 font-mono font-semibold text-slate-900 whitespace-nowrap">{{ b.builty_no }}</td>
+                        <td class="px-6 py-3.5 font-bold text-slate-900 whitespace-nowrap">{{ b.customer_name }}</td>
+                        <td class="px-6 py-3.5 text-slate-700 whitespace-nowrap">{{ b.contact_number }}</td>
+                        <td class="px-6 py-3.5 whitespace-nowrap text-xs text-slate-600">{{ b.delivery_mode }}</td>
+                        <td class="px-6 py-3.5 text-right whitespace-nowrap font-mono">{{ b.total_amount|floatformat:2|intcomma }}</td>
+                        <td class="px-6 py-3.5 text-right whitespace-nowrap font-mono text-slate-600">{{ b.loading_charges|floatformat:2|intcomma }}</td>
+                        <td class="px-6 py-3.5 text-right whitespace-nowrap font-mono text-slate-600">{{ b.godam_charges|floatformat:2|intcomma }}</td>
+                        <td class="px-6 py-3.5 text-right whitespace-nowrap font-mono text-slate-600">{{ b.advance_received|floatformat:2|intcomma }}</td>
+                        <td class="px-6 py-3.5 text-right whitespace-nowrap font-mono font-bold {% if b.receivable_amount > 0 %}text-rose-700{% else %}text-emerald-700{% endif %}">
+                            Rs. {{ b.receivable_amount|floatformat:2|intcomma }}
+                        </td>
+                        <td class="px-6 py-3.5 text-center whitespace-nowrap text-xs">
+                            {% if b.goods_condition == 'Received OK' %}
+                            <span class="inline-flex px-2 py-0.5 rounded-full text-xs font-medium bg-emerald-50 text-emerald-700 border border-emerald-200">{{ b.goods_condition }}</span>
+                            {% else %}
+                            <span class="inline-flex px-2 py-0.5 rounded-full text-xs font-bold bg-amber-50 text-amber-700 border border-amber-200">{{ b.goods_condition }}</span>
+                            {% endif %}
+                        </td>
+                        <td class="px-6 py-3.5 text-center whitespace-nowrap text-xs text-slate-700">
+                            {{ b.delivery_status }}
+                        </td>
+                        <td class="px-6 py-3.5 text-center whitespace-nowrap">
+                            {% if b.status == 'Open' %}
+                            <span class="inline-flex px-2.5 py-0.5 rounded-full text-xs font-semibold bg-blue-50 text-blue-700 border border-blue-200">{% trans "Open" %}</span>
+                            {% else %}
+                            <span class="inline-flex px-2.5 py-0.5 rounded-full text-xs font-semibold bg-slate-100 text-slate-600">{% trans "Closed" %}</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="14" class="px-6 py-10 text-center text-slate-400">
+                            <p class="text-base font-semibold">{% trans "No builties found." %}</p>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        {% if page_obj.has_other_pages %}
+        <div class="px-6 py-3.5 border-t border-slate-200 flex items-center justify-between text-sm">
+            <span class="text-slate-500">{% trans "Page" %} {{ page_obj.number }} {% trans "of" %} {{ page_obj.paginator.num_pages }}</span>
+            <div class="flex items-center gap-2">
+                {% if page_obj.has_previous %}
+                <a href="?page={{ page_obj.previous_page_number }}{% if query %}&q={{ query }}{% endif %}{% if status_filter %}&status={{ status_filter }}{% endif %}{% if delivery_filter %}&delivery_status={{ delivery_filter }}{% endif %}" class="px-3 py-1 border border-slate-300 rounded-2xl text-slate-600 hover:bg-slate-50">{% trans "Previous" %}</a>
+                {% endif %}
+                {% if page_obj.has_next %}
+                <a href="?page={{ page_obj.next_page_number }}{% if query %}&q={{ query }}{% endif %}{% if status_filter %}&status={{ status_filter }}{% endif %}{% if delivery_filter %}&delivery_status={{ delivery_filter }}{% endif %}" class="px-3 py-1 border border-slate-300 rounded-2xl text-slate-600 hover:bg-slate-50">{% trans "Next" %}</a>
+                {% endif %}
+            </div>
+        </div>
+        {% endif %}
     </div>
 </div>
 {% endblock %}

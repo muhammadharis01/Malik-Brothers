@@ -2,7 +2,8 @@ from decimal import Decimal
 from django import forms
 from django.contrib import messages
 from django.core.paginator import Paginator
-from django.db.models import Q
+from django.db.models import Q, Sum, DecimalField, Value
+from django.db.models.functions import Coalesce
 from django.shortcuts import render, redirect, get_object_or_404
 from django.utils.translation import gettext as _
 
@@ -99,7 +100,13 @@ def customer_master_view(request):
     search_query = request.GET.get('q', '').strip()
     status_filter = request.GET.get('status', '').strip()
 
-    customers = CustomerMaster.objects.all().order_by('-customer_id')
+    customers = CustomerMaster.objects.annotate(
+        outstanding=Coalesce(
+            Sum('consignments__receivable_amount', filter=Q(consignments__status='Open')),
+            Value(Decimal('0.00')),
+            output_field=DecimalField(max_digits=14, decimal_places=2),
+        )
+    ).order_by('-customer_id')
 
     if search_query:
         customers = customers.filter(
