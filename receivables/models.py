@@ -20,6 +20,94 @@ class GoodsCondition(models.TextChoices):
     RECEIVED_OK = 'Received OK', _('Received OK')
     DAMAGED = 'Damaged', _('Damaged')
     LOST = 'Lost', _('Lost')
+    IN_TRANSIT = 'In Transit', _('In Transit')
+
+
+class TruckChallanStatus(models.TextChoices):
+    PENDING = 'Pending', _('Pending')
+    COMPLETE = 'Complete', _('Complete')
+
+
+class InboundTruckChallan(models.Model):
+    truck_challan_key = models.CharField(
+        max_length=80,
+        primary_key=True,
+        verbose_name=_('Truck-Challan Key')
+    )
+    truck_no = models.CharField(
+        max_length=50,
+        verbose_name=_('Actual Truck No.')
+    )
+    challan_no = models.CharField(
+        max_length=50,
+        verbose_name=_('Challan No.')
+    )
+    no_of_builties = models.PositiveIntegerField(
+        verbose_name=_('Expected No. of Builties')
+    )
+    status = models.CharField(
+        max_length=15,
+        choices=TruckChallanStatus.choices,
+        default=TruckChallanStatus.PENDING,
+        verbose_name=_('Status')
+    )
+    branch_id = models.IntegerField(default=1, verbose_name=_('Branch ID'))
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='created_truck_challans',
+        verbose_name=_('Created By')
+    )
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name=_('Created At'))
+    updated_at = models.DateTimeField(auto_now=True, verbose_name=_('Updated At'))
+
+    class Meta:
+        db_table = 'inbound_truck_challan'
+        verbose_name = _('Inbound Truck-Challan')
+        verbose_name_plural = _('Inbound Truck-Challans')
+        ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['truck_challan_key']),
+            models.Index(fields=['truck_no']),
+            models.Index(fields=['challan_no']),
+            models.Index(fields=['status']),
+        ]
+
+    def __str__(self):
+        return f"{self.truck_challan_key} ({self.status})"
+
+    @staticmethod
+    def generate_key(truck_no: str, challan_no: str) -> str:
+        clean_truck = str(truck_no or '').strip().upper()
+        clean_challan = str(challan_no or '').strip().upper()
+        return f"{clean_truck}-{clean_challan}"
+
+    @property
+    def builties_count(self) -> int:
+        return self.builties.count()
+
+    @property
+    def total_nags(self) -> int:
+        return self.builties.aggregate(models.Sum('nags'))['nags__sum'] or 0
+
+    @property
+    def is_locked(self) -> bool:
+        """
+        Rule: If any builty exists under this Truck-Challan, header is locked.
+        Before any builty is created, the user can still edit header fields.
+        """
+        return self.builties.exists()
+
+    def sync_status(self):
+        """Update status based on entered builties vs expected count."""
+        count = self.builties.count()
+        if count >= self.no_of_builties:
+            self.status = TruckChallanStatus.COMPLETE
+        else:
+            self.status = TruckChallanStatus.PENDING
+        self.save(update_fields=['status', 'updated_at'])
 
 
 class DeliveryStatus(models.TextChoices):
@@ -121,6 +209,24 @@ class Consignment(models.Model):
         default=ConsignmentStatus.OPEN,
         verbose_name=_('Builty Status')
     )
+    truck_challan = models.ForeignKey(
+        'receivables.InboundTruckChallan',
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name='builties',
+        verbose_name=_('Truck-Challan Header')
+    )
+    truck_no_karachi = models.CharField(
+        max_length=50,
+        blank=True,
+        verbose_name=_('Truck No. as per Karachi Document')
+    )
+    nags = models.PositiveIntegerField(
+        null=True,
+        blank=True,
+        verbose_name=_('No. of Nags / Boxes')
+    )
     remarks = models.CharField(max_length=300, blank=True, verbose_name=_('Remarks'))
     branch_id = models.IntegerField(default=1, verbose_name=_('Branch ID'))
 
@@ -144,6 +250,7 @@ class Consignment(models.Model):
         indexes = [
             models.Index(fields=['form_no']),
             models.Index(fields=['builty_no']),
+            models.Index(fields=['truck_challan']),
             models.Index(fields=['customer']),
             models.Index(fields=['status', 'delivery_status']),
             models.Index(fields=['received_date']),
@@ -315,3 +422,69 @@ class LossDamageSettlement(models.Model):
 
     def __str__(self):
         return f"Settlement #{self.settlement_id} for {self.consignment.form_no} - Rs. {self.amount_paid_to_customer}"
+
+
+class ChangeLog(models.Model):
+    log_id = models.BigAutoField(primary_key=True)
+    truck_challan_key = models.CharField(
+        max_length=80,
+        blank=True,
+        db_index=True,
+        verbose_name=_('Truck-Challan Key')
+    )
+    builty_no = models.CharField(
+        max_length=50,
+        blank=True,
+        db_index=True,
+        verbose_name=_('Builty No.')
+    )
+    action_type = models.CharField(
+        max_length=50,
+        verbose_name=_('Action Type')
+    )  # e.g. HEADER_CREATED, HEADER_UPDATED, BUILTY_CREATED, STATUS_UPDATED
+    field_name = models.CharField(
+        max_length=60,
+        blank=True,
+        verbose_name=_('Field Changed')
+    )
+    old_value = models.TextField(
+        blank=True,
+        verbose_name=_('Old Value')
+    )
+    new_value = models.TextField(
+        blank=True,
+        verbose_name=_('New Value')
+    )
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='audit_change_logs',
+        verbose_name=_('User')
+    )
+    timestamp = models.DateTimeField(
+        default=timezone.now,
+        db_index=True,
+        verbose_name=_('Date & Time')
+    )
+    ip_address = models.GenericIPAddressField(
+        null=True,
+        blank=True,
+        verbose_name=_('IP Address')
+    )
+
+    class Meta:
+        db_table = 'consignment_audit_log'
+        verbose_name = _('Change Log Entry')
+        verbose_name_plural = _('Change Log (Audit Trail)')
+        ordering = ['-timestamp', '-log_id']
+        indexes = [
+            models.Index(fields=['truck_challan_key']),
+            models.Index(fields=['builty_no']),
+            models.Index(fields=['action_type']),
+            models.Index(fields=['timestamp']),
+        ]
+
+    def __str__(self):
+        return f"Log #{self.log_id}: {self.action_type} on {self.truck_challan_key or self.builty_no} at {self.timestamp}"

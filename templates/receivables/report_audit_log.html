@@ -1,0 +1,155 @@
+{% extends "base.html" %}
+{% load i18n humanize %}
+
+{% block title %}{% trans "Audit Trail & Change Log" %}{% endblock %}
+{% block page_title %}{% trans "Audit Trail (Change Log)" %}{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+    <!-- Header Banner -->
+    <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-xs flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+        <div>
+            <div class="flex items-center gap-2">
+                <span class="p-1.5 bg-blue-100 text-[#0047AB] rounded-lg">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+                </span>
+                <h3 class="text-xl font-bold text-slate-900">{% trans "System Change Log & Audit History" %}</h3>
+            </div>
+            <p class="text-sm text-slate-500 mt-1">
+                {% trans "Insert-only traceability log: Tracks header creations, builty entries, and arrival status transitions." %}
+            </p>
+        </div>
+
+        <div class="flex items-center gap-3">
+            <span class="text-xs font-semibold px-3 py-1.5 bg-slate-100 text-slate-700 rounded-xl border border-slate-200">
+                {% trans "Total Events:" %} <strong class="text-slate-900">{{ total_logs }}</strong>
+            </span>
+            <a href="{% url 'receivables:form1_receiving' %}" class="inline-flex items-center gap-2 px-4 py-2 bg-[#0047AB] hover:bg-[#003A8C] text-white font-semibold text-sm rounded-xl transition-all shadow-xs">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/></svg>
+                <span>{% trans "Back to Receiving Form" %}</span>
+            </a>
+        </div>
+    </div>
+
+    <!-- Filter Form -->
+    <form method="get" class="bg-white p-6 rounded-2xl border border-slate-200 shadow-xs grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-4">
+        <div>
+            <label class="block text-xs font-semibold text-slate-600 uppercase mb-1">{% trans "Search Keyword" %}</label>
+            <input type="text" name="q" value="{{ query }}" placeholder="{% trans 'Key, Builty, User, Values...' %}"
+                   class="w-full h-11 px-3 text-sm rounded-xl border border-slate-300 focus:border-[#14B8A6] outline-none">
+        </div>
+        <div>
+            <label class="block text-xs font-semibold text-slate-600 uppercase mb-1">{% trans "Action Type" %}</label>
+            <select name="action_type" class="w-full h-11 px-3 text-sm rounded-xl border border-slate-300 focus:border-[#14B8A6] outline-none">
+                <option value="">-- {% trans "All Actions" %} --</option>
+                {% for at in action_types %}
+                <option value="{{ at }}" {% if action_filter == at %}selected{% endif %}>{{ at }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div>
+            <label class="block text-xs font-semibold text-slate-600 uppercase mb-1">{% trans "From Date" %}</label>
+            <input type="date" name="date_from" value="{{ date_from }}"
+                   class="w-full h-11 px-3 text-sm rounded-xl border border-slate-300 focus:border-[#14B8A6] outline-none">
+        </div>
+        <div>
+            <label class="block text-xs font-semibold text-slate-600 uppercase mb-1">{% trans "To Date" %}</label>
+            <input type="date" name="date_to" value="{{ date_to }}"
+                   class="w-full h-11 px-3 text-sm rounded-xl border border-slate-300 focus:border-[#14B8A6] outline-none">
+        </div>
+        <div class="flex items-end gap-2">
+            <button type="submit" class="flex-1 h-11 bg-[#0047AB] hover:bg-[#003A8C] text-white font-semibold text-sm rounded-xl transition-all">
+                {% trans "Filter Logs" %}
+            </button>
+            {% if query or action_filter or date_from or date_to %}
+            <a href="{% url 'receivables:audit_logs_report' %}" class="h-11 px-4 bg-slate-100 hover:bg-slate-200 text-slate-600 font-semibold text-sm rounded-xl flex items-center justify-center">
+                {% trans "Clear" %}
+            </a>
+            {% endif %}
+        </div>
+    </form>
+
+    <!-- Log Table -->
+    <div class="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden">
+        <div class="overflow-x-auto">
+            <table class="w-full text-left text-sm text-slate-600 whitespace-nowrap">
+                <thead class="bg-slate-50 text-xs uppercase font-semibold text-slate-500 border-b border-slate-200">
+                    <tr>
+                        <th class="px-6 py-3.5">{% trans "ID" %}</th>
+                        <th class="px-6 py-3.5">{% trans "Date & Time" %}</th>
+                        <th class="px-6 py-3.5">{% trans "Action Type" %}</th>
+                        <th class="px-6 py-3.5">{% trans "Truck-Challan Key" %}</th>
+                        <th class="px-6 py-3.5">{% trans "Builty No." %}</th>
+                        <th class="px-6 py-3.5">{% trans "Field" %}</th>
+                        <th class="px-6 py-3.5">{% trans "Old Value" %}</th>
+                        <th class="px-6 py-3.5">{% trans "New Value" %}</th>
+                        <th class="px-6 py-3.5">{% trans "User" %}</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-100 font-mono">
+                    {% for log in page_obj %}
+                    <tr class="hover:bg-slate-50/70 transition-colors">
+                        <td class="px-6 py-3.5 font-bold text-slate-400">#{{ log.log_id }}</td>
+                        <td class="px-6 py-3.5 text-slate-700 font-sans whitespace-nowrap">
+                            {{ log.timestamp|date:"d M Y, h:i A" }}
+                        </td>
+                        <td class="px-6 py-3.5 font-sans whitespace-nowrap">
+                            {% if log.action_type == 'HEADER_CREATED' %}
+                            <span class="inline-flex px-2.5 py-0.5 rounded-full text-xs font-semibold bg-blue-50 text-[#0047AB] border border-blue-200">Header Created</span>
+                            {% elif log.action_type == 'HEADER_UPDATED' %}
+                            <span class="inline-flex px-2.5 py-0.5 rounded-full text-xs font-semibold bg-amber-50 text-amber-700 border border-amber-200">Header Updated</span>
+                            {% elif log.action_type == 'BUILTY_CREATED' %}
+                            <span class="inline-flex px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">Builty Created</span>
+                            {% elif log.action_type == 'STATUS_UPDATED' %}
+                            <span class="inline-flex px-2.5 py-0.5 rounded-full text-xs font-semibold bg-teal-50 text-teal-800 border border-teal-200">Status Updated</span>
+                            {% else %}
+                            <span class="inline-flex px-2.5 py-0.5 rounded-full text-xs font-semibold bg-slate-100 text-slate-700">{{ log.action_type }}</span>
+                            {% endif %}
+                        </td>
+                        <td class="px-6 py-3.5 font-bold text-[#0047AB] whitespace-nowrap">
+                            {{ log.truck_challan_key|default:"-" }}
+                        </td>
+                        <td class="px-6 py-3.5 font-semibold text-slate-900 whitespace-nowrap">
+                            {{ log.builty_no|default:"-" }}
+                        </td>
+                        <td class="px-6 py-3.5 font-sans text-xs text-slate-500 whitespace-nowrap">
+                            {{ log.field_name|default:"-" }}
+                        </td>
+                        <td class="px-6 py-3.5 font-sans text-xs text-rose-700 max-w-xs truncate" title="{{ log.old_value }}">
+                            {{ log.old_value|default:"-" }}
+                        </td>
+                        <td class="px-6 py-3.5 font-sans text-xs text-emerald-700 font-medium max-w-xs truncate" title="{{ log.new_value }}">
+                            {{ log.new_value|default:"-" }}
+                        </td>
+                        <td class="px-6 py-3.5 font-sans text-xs text-slate-700 whitespace-nowrap">
+                            <span class="font-medium text-slate-900">{{ log.user.username|default:"System" }}</span>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="9" class="px-6 py-12 text-center text-slate-400 font-sans">
+                            <svg class="w-10 h-10 mx-auto text-slate-300 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+                            <p class="font-medium">{% trans "No audit log entries found matching criteria." %}</p>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        {% if page_obj.has_other_pages %}
+        <div class="px-6 py-4 border-t border-slate-200 flex items-center justify-between text-sm">
+            <span class="text-slate-500">{% trans "Page" %} {{ page_obj.number }} {% trans "of" %} {{ page_obj.paginator.num_pages }}</span>
+            <div class="flex items-center gap-2">
+                {% if page_obj.has_previous %}
+                <a href="?page={{ page_obj.previous_page_number }}{% if query %}&q={{ query }}{% endif %}{% if action_filter %}&action_type={{ action_filter }}{% endif %}{% if date_from %}&date_from={{ date_from }}{% endif %}{% if date_to %}&date_to={{ date_to }}{% endif %}" class="px-3 py-1.5 border border-slate-300 rounded-xl text-slate-600 hover:bg-slate-50">{% trans "Previous" %}</a>
+                {% endif %}
+                {% if page_obj.has_next %}
+                <a href="?page={{ page_obj.next_page_number }}{% if query %}&q={{ query }}{% endif %}{% if action_filter %}&action_type={{ action_filter }}{% endif %}{% if date_from %}&date_from={{ date_from }}{% endif %}{% if date_to %}&date_to={{ date_to }}{% endif %}" class="px-3 py-1.5 border border-slate-300 rounded-xl text-slate-600 hover:bg-slate-50">{% trans "Next" %}</a>
+                {% endif %}
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

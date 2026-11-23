@@ -20,7 +20,194 @@ from receivables.models import (
     CustomerCategory,
     DeliveryMode,
     PaymentMode,
+    InboundTruckChallan,
+    TruckChallanStatus,
+    ChangeLog,
 )
+
+
+def log_change(
+    action_type: str,
+    truck_challan_key: str = '',
+    builty_no: str = '',
+    field_name: str = '',
+    old_value: str = '',
+    new_value: str = '',
+    user=None,
+    ip_address: Optional[str] = None,
+) -> ChangeLog:
+    """
+    Creates an immutable audit log entry in the database.
+    """
+    audit_user = user if (user and getattr(user, 'is_authenticated', False)) else None
+    return ChangeLog.objects.create(
+        truck_challan_key=str(truck_challan_key or ''),
+        builty_no=str(builty_no or ''),
+        action_type=str(action_type),
+        field_name=str(field_name or ''),
+        old_value=str(old_value or ''),
+        new_value=str(new_value or ''),
+        user=audit_user,
+        ip_address=ip_address,
+    )
+
+
+def get_or_create_truck_challan(
+    truck_no: str,
+    challan_no: str,
+    no_of_builties: int,
+    user=None,
+    ip_address: Optional[str] = None,
+    branch_id: int = 1,
+) -> Tuple[InboundTruckChallan, bool]:
+    """
+    Looks up an existing Truck-Challan header or creates a new one.
+    If already exists, returns the existing document without creating duplicates.
+    """
+    clean_truck = str(truck_no or '').strip().upper()
+    clean_challan = str(challan_no or '').strip().upper()
+    if not clean_truck:
+        raise ValidationError(_("Truck No. is required."))
+    if not clean_challan:
+        raise ValidationError(_("Challan No. is required."))
+
+    key = InboundTruckChallan.generate_key(clean_truck, clean_challan)
+    existing = InboundTruckChallan.objects.filter(truck_challan_key=key).first()
+    if existing:
+        return existing, False
+
+    try:
+        expected_count = int(no_of_builties)
+        if expected_count <= 0:
+            raise ValueError()
+    except (ValueError, TypeError):
+        raise ValidationError(_("No. of Builties must be a positive integer greater than zero."))
+
+    audit_user = user if (user and getattr(user, 'is_authenticated', False)) else None
+    header = InboundTruckChallan.objects.create(
+        truck_challan_key=key,
+        truck_no=clean_truck,
+        challan_no=clean_challan,
+        no_of_builties=expected_count,
+        status=TruckChallanStatus.PENDING,
+        branch_id=branch_id,
+        created_by=audit_user,
+    )
+
+    log_change(
+        action_type='HEADER_CREATED',
+        truck_challan_key=key,
+        field_name='status',
+        old_value='',
+        new_value=f"Created with {expected_count} expected builties. Status: Pending",
+        user=user,
+        ip_address=ip_address,
+    )
+    return header, True
+
+
+@transaction.atomic
+def update_truck_challan_header(
+    current_key: str,
+    truck_no: str,
+    challan_no: str,
+    no_of_builties: int,
+    user=None,
+    ip_address: Optional[str] = None,
+) -> InboundTruckChallan:
+    """
+    Updates header details if and only if NO builties have been attached yet.
+    """
+    header = InboundTruckChallan.objects.select_for_update().get(truck_challan_key=current_key)
+    if header.is_locked:
+        raise ValidationError(_("Header is locked and cannot be edited because Builties have already been entered."))
+
+    clean_truck = str(truck_no or '').strip().upper()
+    clean_challan = str(challan_no or '').strip().upper()
+    if not clean_truck or not clean_challan:
+        raise ValidationError(_("Both Truck No. and Challan No. are required."))
+
+    try:
+        expected_count = int(no_of_builties)
+        if expected_count <= 0:
+            raise ValueError()
+    except (ValueError, TypeError):
+        raise ValidationError(_("No. of Builties must be greater than zero."))
+
+    new_key = InboundTruckChallan.generate_key(clean_truck, clean_challan)
+    if new_key != current_key and InboundTruckChallan.objects.filter(truck_challan_key=new_key).exists():
+        raise ValidationError(_("A Truck-Challan document with key '%(k)s' already exists.") % {'k': new_key})
+
+    old_summary = f"Key: {header.truck_challan_key}, Truck: {header.truck_no}, Challan: {header.challan_no}, Expected: {header.no_of_builties}"
+    
+    if new_key != current_key:
+        # Primary key changed - delete old and create new with same audit
+        created_by = header.created_by
+        branch_id = header.branch_id
+        header.delete()
+        header = InboundTruckChallan.objects.create(
+            truck_challan_key=new_key,
+            truck_no=clean_truck,
+            challan_no=clean_challan,
+            no_of_builties=expected_count,
+            status=TruckChallanStatus.PENDING,
+            branch_id=branch_id,
+            created_by=created_by,
+        )
+    else:
+        header.truck_no = clean_truck
+        header.challan_no = clean_challan
+        header.no_of_builties = expected_count
+        header.save()
+
+    new_summary = f"Key: {header.truck_challan_key}, Truck: {header.truck_no}, Challan: {header.challan_no}, Expected: {header.no_of_builties}"
+    log_change(
+        action_type='HEADER_UPDATED',
+        truck_challan_key=header.truck_challan_key,
+        field_name='header_fields',
+        old_value=old_summary,
+        new_value=new_summary,
+        user=user,
+        ip_address=ip_address,
+    )
+    return header
+
+
+@transaction.atomic
+def update_in_transit_status(
+    form_no: str,
+    new_goods_condition: str,
+    user=None,
+    ip_address: Optional[str] = None,
+) -> Consignment:
+    """
+    Section 8: Updating Status of In-Transit Builties.
+    When goods physically arrive, user can open the builty and change ONLY Goods Received Status.
+    All other fields remain read-only.
+    """
+    consignment = Consignment.objects.select_for_update().get(form_no=form_no)
+    old_condition = consignment.goods_condition
+    if old_condition != GoodsCondition.IN_TRANSIT:
+        raise ValidationError(_("Only Builties with 'In Transit' status can have their status updated through this action."))
+
+    valid_targets = [GoodsCondition.RECEIVED_OK, GoodsCondition.DAMAGED, GoodsCondition.LOST]
+    if new_goods_condition not in valid_targets:
+        raise ValidationError(_("Invalid goods condition '%(c)s'.") % {'c': new_goods_condition})
+
+    consignment.goods_condition = new_goods_condition
+    consignment.save(update_fields=['goods_condition', 'updated_at'])
+
+    log_change(
+        action_type='STATUS_UPDATED',
+        truck_challan_key=consignment.truck_challan.truck_challan_key if consignment.truck_challan else '',
+        builty_no=consignment.builty_no,
+        field_name='goods_condition',
+        old_value=old_condition,
+        new_value=new_goods_condition,
+        user=user,
+        ip_address=ip_address,
+    )
+    return consignment
 
 
 def generate_form_no() -> str:
@@ -121,12 +308,17 @@ def create_consignment(
     delivery_address: Optional[str] = None,
     customer_builty_no: Optional[str] = '',
     remarks: Optional[str] = '',
+    truck_challan_key: Optional[str] = None,
+    truck_no_karachi: Optional[str] = None,
+    nags: Optional[int] = None,
     user=None,
+    ip_address: Optional[str] = None,
     branch_id: int = 1,
 ) -> Tuple[Consignment, Optional[str]]:
     """
     Form 1: Consignment Receiving.
     Saves consignment, sets Delivery Status to Not Delivered, calculates initial receivable.
+    Validates against header builty count if linked to a Truck-Challan.
     """
     total_amount = Decimal(str(total_amount))
     advance_received = Decimal(str(advance_received or '0.00'))
@@ -149,6 +341,21 @@ def create_consignment(
         raise ValidationError(_("Karachi Builty No. is required."))
     if Consignment.objects.filter(builty_no=clean_builty_no).exists():
         raise ValidationError(_("Karachi Builty No. '%(no)s' already exists in the system.") % {'no': clean_builty_no})
+
+    # Validate header & control limit
+    header_obj = None
+    if truck_challan_key:
+        try:
+            header_obj = InboundTruckChallan.objects.select_for_update().get(truck_challan_key=truck_challan_key)
+        except InboundTruckChallan.DoesNotExist:
+            raise ValidationError(_("Truck-Challan '%(k)s' not found.") % {'k': truck_challan_key})
+
+        current_count = header_obj.builties.count()
+        if current_count >= header_obj.no_of_builties:
+            raise ValidationError(
+                _("Control limit reached: Cannot create more than %(max)d Builties under Truck-Challan %(k)s.")
+                % {'max': header_obj.no_of_builties, 'k': header_obj.truck_challan_key}
+            )
 
     customer_obj = None
     credit_warning = None
@@ -195,12 +402,16 @@ def create_consignment(
     initial_receivable = total_amount + loading_charges + godam_charges - advance_received
 
     audit_user = user if (user and getattr(user, 'is_authenticated', False)) else None
+    clean_nags = max(1, int(nags)) if (nags is not None and str(nags).strip() != '') else None
 
     consignment = Consignment.objects.create(
         form_no=form_no,
         received_date=timezone.localdate(),
         builty_no=clean_builty_no,
         customer_builty_no=customer_builty_no or '',
+        truck_challan=header_obj,
+        truck_no_karachi=(truck_no_karachi or '').strip().upper(),
+        nags=clean_nags,
         customer_type=customer_type,
         customer=customer_obj,
         customer_name=c_name,
@@ -220,6 +431,19 @@ def create_consignment(
         branch_id=branch_id,
         created_by=audit_user,
     )
+
+    if header_obj:
+        header_obj.sync_status()
+        log_change(
+            action_type='BUILTY_CREATED',
+            truck_challan_key=header_obj.truck_challan_key,
+            builty_no=clean_builty_no,
+            field_name='consignment',
+            old_value='',
+            new_value=f"Goods Condition: {goods_condition}, Nags: {clean_nags if clean_nags is not None else '-'}, Balance: Rs. {initial_receivable:,.2f}",
+            user=user,
+            ip_address=ip_address,
+        )
 
     return consignment, credit_warning
 

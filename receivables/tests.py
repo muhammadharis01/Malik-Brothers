@@ -17,6 +17,9 @@ from receivables.models import (
     DeliveryMode,
     PaymentMode,
     ReceivedVia,
+    InboundTruckChallan,
+    TruckChallanStatus,
+    ChangeLog,
 )
 from receivables import services
 
@@ -442,3 +445,227 @@ class ExtraChargesAndListTests(TestCase):
         self.assertContains(r, 'SRCH-77')
         r = self.client.get(reverse('receivables:form1_receiving'), {'q': 'nomatch'})
         self.assertContains(r, 'No builties found')
+
+
+class InboundTruckChallanAndAuditLogTest(TestCase):
+    def setUp(self):
+        User = get_user_model()
+        self.user = User.objects.create_user(username='operator1', password='pass123operator')
+        self.client = Client()
+        self.client.force_login(self.user)
+
+    def test_header_creation_and_key_generation(self):
+        header, created = services.get_or_create_truck_challan(
+            truck_no='tk-9834',
+            challan_no='ch-2302',
+            no_of_builties=20,
+            user=self.user,
+        )
+        self.assertTrue(created)
+        self.assertEqual(header.truck_challan_key, 'TK-9834-CH-2302')
+        self.assertEqual(header.status, TruckChallanStatus.PENDING)
+        self.assertEqual(header.no_of_builties, 20)
+
+        # Audit log entry created
+        self.assertTrue(ChangeLog.objects.filter(
+            truck_challan_key='TK-9834-CH-2302',
+            action_type='HEADER_CREATED'
+        ).exists())
+
+    def test_reopening_existing_header_does_not_duplicate(self):
+        h1, created1 = services.get_or_create_truck_challan(
+            truck_no='TK-1111',
+            challan_no='CH-9999',
+            no_of_builties=10,
+            user=self.user,
+        )
+        self.assertTrue(created1)
+
+        # Reopen with same truck and challan
+        h2, created2 = services.get_or_create_truck_challan(
+            truck_no='TK-1111',
+            challan_no='CH-9999',
+            no_of_builties=15,  # ignored since it exists
+            user=self.user,
+        )
+        self.assertFalse(created2)
+        self.assertEqual(h1.truck_challan_key, h2.truck_challan_key)
+        self.assertEqual(InboundTruckChallan.objects.filter(truck_challan_key='TK-1111-CH-9999').count(), 1)
+
+    def test_control_limit_on_number_of_builties(self):
+        header, _ = services.get_or_create_truck_challan(
+            truck_no='TK-LIMIT',
+            challan_no='CH-LIMIT',
+            no_of_builties=2,  # Maximum 2 builties allowed
+            user=self.user,
+        )
+
+        # Builty 1
+        services.create_consignment(
+            builty_no='LIM-01',
+            customer_type=CustomerCategory.WALK_IN,
+            customer_name='Walk-in Client',
+            contact_number='0300-1111111',
+            total_amount=Decimal('5000.00'),
+            truck_challan_key=header.truck_challan_key,
+            nags=3,
+            user=self.user,
+        )
+        header.refresh_from_db()
+        self.assertEqual(header.status, TruckChallanStatus.PENDING)
+        self.assertEqual(header.builties_count, 1)
+        self.assertEqual(header.total_nags, 3)
+
+        # Builty 2 (equals limit -> Complete)
+        services.create_consignment(
+            builty_no='LIM-02',
+            customer_type=CustomerCategory.WALK_IN,
+            customer_name='Walk-in Client 2',
+            contact_number='0300-2222222',
+            total_amount=Decimal('3000.00'),
+            truck_challan_key=header.truck_challan_key,
+            nags=2,
+            user=self.user,
+        )
+        header.refresh_from_db()
+        self.assertEqual(header.status, TruckChallanStatus.COMPLETE)
+        self.assertEqual(header.builties_count, 2)
+        self.assertEqual(header.total_nags, 5)
+
+        # Builty 3 (exceeds limit -> blocked by validation control)
+        with self.assertRaises(ValidationError) as ctx:
+            services.create_consignment(
+                builty_no='LIM-03',
+                customer_type=CustomerCategory.WALK_IN,
+                customer_name='Walk-in Client 3',
+                contact_number='0300-3333333',
+                total_amount=Decimal('2000.00'),
+                truck_challan_key=header.truck_challan_key,
+                user=self.user,
+            )
+        self.assertIn("Control limit reached", str(ctx.exception))
+
+    def test_header_edit_before_and_after_builties(self):
+        header, _ = services.get_or_create_truck_challan(
+            truck_no='TK-EDIT',
+            challan_no='CH-ORIG',
+            no_of_builties=10,
+            user=self.user,
+        )
+        # Edit allowed when 0 builties exist
+        updated = services.update_truck_challan_header(
+            current_key=header.truck_challan_key,
+            truck_no='TK-EDIT-MOD',
+            challan_no='CH-NEW',
+            no_of_builties=15,
+            user=self.user,
+        )
+        self.assertEqual(updated.truck_challan_key, 'TK-EDIT-MOD-CH-NEW')
+        self.assertEqual(updated.no_of_builties, 15)
+
+        # Add 1 builty
+        services.create_consignment(
+            builty_no='EDIT-B1',
+            customer_type=CustomerCategory.WALK_IN,
+            customer_name='Test Client',
+            contact_number='0300-9999999',
+            total_amount=Decimal('1000.00'),
+            truck_challan_key=updated.truck_challan_key,
+            user=self.user,
+        )
+
+        # Edit now locked
+        with self.assertRaises(ValidationError) as ctx:
+            services.update_truck_challan_header(
+                current_key=updated.truck_challan_key,
+                truck_no='TK-LOCKED',
+                challan_no='CH-LOCKED',
+                no_of_builties=25,
+                user=self.user,
+            )
+        self.assertIn("Header is locked", str(ctx.exception))
+
+    def test_in_transit_goods_and_arrival_status_update(self):
+        header, _ = services.get_or_create_truck_challan(
+            truck_no='TK-TRANSIT',
+            challan_no='CH-TRANSIT',
+            no_of_builties=5,
+            user=self.user,
+        )
+
+        # Create builty as In Transit with different Karachi truck number
+        consignment, _ = services.create_consignment(
+            builty_no='TR-9901',
+            customer_type=CustomerCategory.WALK_IN,
+            customer_name='Transit Customer',
+            contact_number='0300-7777777',
+            total_amount=Decimal('8000.00'),
+            goods_condition=GoodsCondition.IN_TRANSIT,
+            truck_challan_key=header.truck_challan_key,
+            truck_no_karachi='TK-KARACHI-DOC-123',
+            nags=10,
+            user=self.user,
+        )
+        self.assertEqual(consignment.goods_condition, GoodsCondition.IN_TRANSIT)
+        self.assertEqual(consignment.truck_no_karachi, 'TK-KARACHI-DOC-123')
+        self.assertEqual(consignment.nags, 10)
+
+        # Physical arrival -> update status to Received OK
+        updated_c = services.update_in_transit_status(
+            form_no=consignment.form_no,
+            new_goods_condition=GoodsCondition.RECEIVED_OK,
+            user=self.user,
+        )
+        self.assertEqual(updated_c.goods_condition, GoodsCondition.RECEIVED_OK)
+
+        # Audit log captured the status update
+        log_entry = ChangeLog.objects.filter(
+            builty_no='TR-9901',
+            action_type='STATUS_UPDATED',
+            field_name='goods_condition',
+        ).first()
+        self.assertIsNotNone(log_entry)
+        self.assertEqual(log_entry.old_value, 'In Transit')
+        self.assertEqual(log_entry.new_value, 'Received OK')
+        self.assertEqual(log_entry.user, self.user)
+
+    def test_update_arrival_view_and_audit_log_view(self):
+        header, _ = services.get_or_create_truck_challan(
+            truck_no='TK-VIEW',
+            challan_no='CH-VIEW',
+            no_of_builties=3,
+            user=self.user,
+        )
+        consignment, _ = services.create_consignment(
+            builty_no='TR-VIEW-01',
+            customer_type=CustomerCategory.WALK_IN,
+            customer_name='View Client',
+            contact_number='0300-8888888',
+            total_amount=Decimal('4500.00'),
+            goods_condition=GoodsCondition.IN_TRANSIT,
+            truck_challan_key=header.truck_challan_key,
+            user=self.user,
+        )
+
+        # POST to update arrival status view
+        resp = self.client.post(
+            reverse('receivables:update_builty_status'),
+            {
+                'form_no': consignment.form_no,
+                'goods_condition': GoodsCondition.DAMAGED,
+                'redirect_key': header.truck_challan_key,
+            },
+        )
+        self.assertEqual(resp.status_code, 302)
+        self.assertIn(f"?key={header.truck_challan_key}", resp.url)
+        consignment.refresh_from_db()
+        self.assertEqual(consignment.goods_condition, GoodsCondition.DAMAGED)
+
+        # Verify audit log page renders the transition
+        log_resp = self.client.get(reverse('receivables:audit_logs_report'))
+        self.assertEqual(log_resp.status_code, 200)
+        self.assertContains(log_resp, 'TR-VIEW-01')
+        self.assertContains(log_resp, 'In Transit')
+        self.assertContains(log_resp, 'Damaged')
+
+

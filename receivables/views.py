@@ -10,6 +10,7 @@ from django.core.paginator import Paginator
 from django.db.models import Sum, Count, Q, F
 from django.http import HttpResponse
 from django.shortcuts import render, redirect, get_object_or_404
+from django.urls import reverse
 from django.utils import timezone
 from django.utils.translation import gettext as _
 
@@ -25,6 +26,9 @@ from receivables.models import (
     DeliveryMode,
     PaymentMode,
     ReceivedVia,
+    InboundTruckChallan,
+    TruckChallanStatus,
+    ChangeLog,
 )
 from receivables.permissions import role_required
 from receivables import services
@@ -130,7 +134,12 @@ def _safe_balance(data):
 
 def form1_receiving(request):
     """
-    Form 1: Consignment Receiving.
+    Form 1: Consignment Receiving (Inbound Truck, Challan, and Builty Management).
+    Supports Header/Line structure:
+    1. Header entry/lock & session re-opening.
+    2. Inline Builty creation under the active Truck-Challan.
+    3. Status & validation controls (Complete / Pending, Builty cap).
+    4. In-Transit goods handling.
     """
     customers = CustomerMaster.objects.filter(status=CustomerStatus.ACTIVE).order_by('customer_name')
     success_consignment = None
@@ -138,85 +147,162 @@ def form1_receiving(request):
     form_data = {}
     errors = {}
 
+    active_key = request.GET.get('key', '').strip() or request.POST.get('truck_challan_key', '').strip()
+    action = request.POST.get('action', '').strip()
+
     if request.method == 'POST':
-        builty_no = request.POST.get('builty_no', '').strip()
-        customer_builty_no = request.POST.get('customer_builty_no', '').strip()
-        customer_type = request.POST.get('customer_type', CustomerCategory.REGULAR)
-        customer_id = request.POST.get('customer_id')
-        customer_name = request.POST.get('customer_name', '').strip()
-        contact_number = request.POST.get('contact_number', '').strip()
-        delivery_mode = request.POST.get('delivery_mode', DeliveryMode.COLLECT_FROM_OFFICE)
-        delivery_address = request.POST.get('delivery_address', '').strip()
-        total_amount = request.POST.get('total_amount', '0').strip()
-        advance_received = request.POST.get('advance_received', '0').strip()
-        loading_charges = request.POST.get('loading_charges', '0').strip()
-        godam_charges = request.POST.get('godam_charges', '0').strip()
-        goods_condition = request.POST.get('goods_condition', GoodsCondition.RECEIVED_OK)
-        remarks = request.POST.get('remarks', '').strip()
+        if action == 'open_or_save_header':
+            truck_no = request.POST.get('truck_no', '').strip()
+            challan_no = request.POST.get('challan_no', '').strip()
+            no_of_builties = request.POST.get('no_of_builties', '').strip()
+            try:
+                header, created = services.get_or_create_truck_challan(
+                    truck_no=truck_no,
+                    challan_no=challan_no,
+                    no_of_builties=no_of_builties,
+                    user=request.user if request.user.is_authenticated else None,
+                    ip_address=request.META.get('REMOTE_ADDR'),
+                )
+                if created:
+                    messages.success(request, _("New Truck-Challan document '%(k)s' created. Line entry is enabled.") % {'k': header.truck_challan_key})
+                else:
+                    messages.info(request, _("Opened existing Truck-Challan document '%(k)s' (Status: %(st)s, %(c)s/%(exp)s Builties entered).") % {
+                        'k': header.truck_challan_key,
+                        'st': header.status,
+                        'c': header.builties_count,
+                        'exp': header.no_of_builties,
+                    })
+                return redirect(f"{request.path}?key={header.truck_challan_key}")
+            except ValidationError as e:
+                errors['header_error'] = e.message if hasattr(e, 'message') else str(e)
+            except Exception as e:
+                errors['header_error'] = str(e)
 
-        form_data = {
-            'builty_no': builty_no,
-            'customer_builty_no': customer_builty_no,
-            'customer_type': customer_type,
-            'customer_id': customer_id,
-            'customer_name': customer_name,
-            'contact_number': contact_number,
-            'delivery_mode': delivery_mode,
-            'delivery_address': delivery_address,
-            'total_amount': total_amount,
-            'advance_received': advance_received,
-            'loading_charges': loading_charges,
-            'godam_charges': godam_charges,
-            'goods_condition': goods_condition,
-            'remarks': remarks,
-        }
+        elif action == 'edit_header':
+            current_key = request.POST.get('current_key', '').strip()
+            truck_no = request.POST.get('truck_no', '').strip()
+            challan_no = request.POST.get('challan_no', '').strip()
+            no_of_builties = request.POST.get('no_of_builties', '').strip()
+            try:
+                header = services.update_truck_challan_header(
+                    current_key=current_key,
+                    truck_no=truck_no,
+                    challan_no=challan_no,
+                    no_of_builties=int(no_of_builties),
+                    user=request.user if request.user.is_authenticated else None,
+                    ip_address=request.META.get('REMOTE_ADDR'),
+                )
+                messages.success(request, _("Truck-Challan header '%(k)s' successfully updated.") % {'k': header.truck_challan_key})
+                return redirect(f"{request.path}?key={header.truck_challan_key}")
+            except ValidationError as e:
+                errors['header_error'] = e.message if hasattr(e, 'message') else str(e)
+            except Exception as e:
+                errors['header_error'] = str(e)
 
-        try:
-            consignment, warning = services.create_consignment(
-                builty_no=builty_no,
-                customer_type=customer_type,
-                total_amount=Decimal(total_amount or '0'),
-                advance_received=Decimal(advance_received or '0'),
-                loading_charges=Decimal(loading_charges or '0'),
-                godam_charges=Decimal(godam_charges or '0'),
-                goods_condition=goods_condition,
-                delivery_mode=delivery_mode,
-                customer_id=int(customer_id) if (customer_type == CustomerCategory.REGULAR and customer_id) else None,
-                customer_name=customer_name,
-                contact_number=contact_number,
-                delivery_address=delivery_address,
-                customer_builty_no=customer_builty_no,
-                remarks=remarks,
-                user=request.user if request.user.is_authenticated else None,
-            )
-            success_consignment = consignment
-            credit_warning = warning
-            messages.success(request, _("Builty '%(b_no)s' successfully received!") % {'b_no': consignment.builty_no})
-            # Clear form_data on success
-            form_data = {}
-        except ValidationError as e:
-            errors['non_field'] = e.message if hasattr(e, 'message') else str(e)
-        except Exception as e:
-            errors['non_field'] = str(e)
+        elif action == 'save_builty' or 'builty_no' in request.POST:
+            active_key = request.POST.get('truck_challan_key', '').strip() or active_key
+            builty_no = request.POST.get('builty_no', '').strip()
+            customer_builty_no = request.POST.get('customer_builty_no', '').strip()
+            truck_no_karachi = request.POST.get('truck_no_karachi', '').strip()
+            nags = request.POST.get('nags', '').strip()
+            customer_type = request.POST.get('customer_type', CustomerCategory.REGULAR)
+            customer_id = request.POST.get('customer_id')
+            customer_name = request.POST.get('customer_name', '').strip()
+            contact_number = request.POST.get('contact_number', '').strip()
+            delivery_mode = request.POST.get('delivery_mode', DeliveryMode.COLLECT_FROM_OFFICE)
+            delivery_address = request.POST.get('delivery_address', '').strip()
+            total_amount = request.POST.get('total_amount', '0').strip()
+            advance_received = request.POST.get('advance_received', '0').strip()
+            loading_charges = request.POST.get('loading_charges', '0').strip()
+            godam_charges = request.POST.get('godam_charges', '0').strip()
+            goods_condition = request.POST.get('goods_condition', GoodsCondition.RECEIVED_OK)
+            remarks = request.POST.get('remarks', '').strip()
+
+            form_data = {
+                'builty_no': builty_no,
+                'customer_builty_no': customer_builty_no,
+                'truck_no_karachi': truck_no_karachi,
+                'nags': nags,
+                'customer_type': customer_type,
+                'customer_id': customer_id,
+                'customer_name': customer_name,
+                'contact_number': contact_number,
+                'delivery_mode': delivery_mode,
+                'delivery_address': delivery_address,
+                'total_amount': total_amount,
+                'advance_received': advance_received,
+                'loading_charges': loading_charges,
+                'godam_charges': godam_charges,
+                'goods_condition': goods_condition,
+                'remarks': remarks,
+            }
+
+            try:
+                consignment, warning = services.create_consignment(
+                    builty_no=builty_no,
+                    customer_type=customer_type,
+                    total_amount=Decimal(total_amount or '0'),
+                    advance_received=Decimal(advance_received or '0'),
+                    loading_charges=Decimal(loading_charges or '0'),
+                    godam_charges=Decimal(godam_charges or '0'),
+                    goods_condition=goods_condition,
+                    delivery_mode=delivery_mode,
+                    customer_id=int(customer_id) if (customer_type == CustomerCategory.REGULAR and customer_id) else None,
+                    customer_name=customer_name,
+                    contact_number=contact_number,
+                    delivery_address=delivery_address,
+                    customer_builty_no=customer_builty_no,
+                    remarks=remarks,
+                    truck_challan_key=active_key or None,
+                    truck_no_karachi=truck_no_karachi,
+                    nags=int(nags) if nags else None,
+                    user=request.user if request.user.is_authenticated else None,
+                    ip_address=request.META.get('REMOTE_ADDR'),
+                )
+                success_consignment = consignment
+                credit_warning = warning
+                messages.success(request, _("Builty '%(b_no)s' successfully received!") % {'b_no': consignment.builty_no})
+                # Reset line form data on success
+                form_data = {}
+            except ValidationError as e:
+                errors['non_field'] = e.message if hasattr(e, 'message') else str(e)
+            except Exception as e:
+                errors['non_field'] = str(e)
+
+    # Active header resolution
+    active_header = None
+    header_builties = []
+    header_is_full = False
+    if active_key:
+        active_header = InboundTruckChallan.objects.filter(truck_challan_key=active_key).first()
+        if active_header:
+            header_builties = active_header.builties.all().order_by('-received_date', '-form_no')
+            header_is_full = active_header.builties_count >= active_header.no_of_builties
 
     # Existing Builties Search & List
     query = request.GET.get('q', '').strip()
     status_filter = request.GET.get('status', '').strip()
     delivery_filter = request.GET.get('delivery_status', '').strip()
+    challan_status_filter = request.GET.get('challan_status', '').strip()
 
-    builties = Consignment.objects.all().order_by('-received_date', '-form_no')
+    builties = Consignment.objects.select_related('truck_challan', 'customer').all().order_by('-received_date', '-form_no')
     if query:
         builties = builties.filter(
             Q(form_no__icontains=query) |
             Q(builty_no__icontains=query) |
             Q(customer_builty_no__icontains=query) |
             Q(customer_name__icontains=query) |
-            Q(contact_number__icontains=query)
+            Q(contact_number__icontains=query) |
+            Q(truck_challan__truck_challan_key__icontains=query) |
+            Q(truck_challan__truck_no__icontains=query) |
+            Q(truck_challan__challan_no__icontains=query)
         )
     if status_filter:
         builties = builties.filter(status=status_filter)
     if delivery_filter:
         builties = builties.filter(delivery_status=delivery_filter)
+    if challan_status_filter:
+        builties = builties.filter(truck_challan__status=challan_status_filter)
 
     paginator = Paginator(builties, 15)
     page_number = request.GET.get('page')
@@ -227,25 +313,108 @@ def form1_receiving(request):
         'customer_categories': CustomerCategory.choices,
         'delivery_modes': DeliveryMode.choices,
         'goods_conditions': GoodsCondition.choices,
+        'truck_challan_statuses': TruckChallanStatus.choices,
         'success_consignment': success_consignment,
         'credit_warning': credit_warning,
         'form_data': form_data,
         'errors': errors,
+        'active_key': active_key,
+        'active_header': active_header,
+        'header_builties': header_builties,
+        'header_is_full': header_is_full,
         'init_type': form_data.get('customer_type') or CustomerCategory.REGULAR,
         'init_mode': form_data.get('delivery_mode') or DeliveryMode.DELIVER_AT_ADDRESS,
         'init_customer': CustomerMaster.objects.filter(pk=form_data['customer_id']).first() if form_data.get('customer_id') else None,
         'init_balance': _safe_balance(form_data),
-        # Builties list context
+        # Builties search grid context
         'page_obj': page_obj,
         'query': query,
         'status_filter': status_filter,
         'delivery_filter': delivery_filter,
+        'challan_status_filter': challan_status_filter,
         'status_choices': ConsignmentStatus.choices,
         'delivery_statuses': DeliveryStatus.choices,
         'total_builties_count': Consignment.objects.count(),
         'total_found': builties.count(),
     }
     return render(request, 'receivables/form1_receiving.html', context)
+
+
+def update_builty_status(request):
+    """
+    Section 8: Updates the Goods Condition for an In-Transit builty upon arrival.
+    Only Goods Received Status can be changed. All other fields remain read-only.
+    """
+    if request.method == 'POST':
+        form_no = request.POST.get('form_no', '').strip()
+        new_condition = request.POST.get('goods_condition', '').strip()
+        redirect_key = request.POST.get('redirect_key', '').strip()
+        try:
+            consignment = services.update_in_transit_status(
+                form_no=form_no,
+                new_goods_condition=new_condition,
+                user=request.user if request.user.is_authenticated else None,
+                ip_address=request.META.get('REMOTE_ADDR'),
+            )
+            messages.success(request, _("Arrival status for Builty '%(no)s' successfully updated to '%(st)s'.") % {
+                'no': consignment.builty_no,
+                'st': consignment.goods_condition,
+            })
+        except ValidationError as e:
+            messages.error(request, e.message if hasattr(e, 'message') else str(e))
+        except Exception as e:
+            messages.error(request, str(e))
+
+        if redirect_key:
+            return redirect(f"{reverse('receivables:form1_receiving')}?key={redirect_key}")
+        return redirect('receivables:form1_receiving')
+    return redirect('receivables:form1_receiving')
+
+
+def audit_logs_report(request):
+    """
+    Section 9: Dedicated Change Log (Audit Trail) Report screen.
+    Displays insert-only history of creations and status updates.
+    """
+    query = request.GET.get('q', '').strip()
+    action_filter = request.GET.get('action_type', '').strip()
+    date_from = request.GET.get('date_from', '').strip()
+    date_to = request.GET.get('date_to', '').strip()
+
+    logs = ChangeLog.objects.select_related('user').all()
+
+    if query:
+        logs = logs.filter(
+            Q(truck_challan_key__icontains=query) |
+            Q(builty_no__icontains=query) |
+            Q(field_name__icontains=query) |
+            Q(old_value__icontains=query) |
+            Q(new_value__icontains=query) |
+            Q(user__username__icontains=query)
+        )
+    if action_filter:
+        logs = logs.filter(action_type=action_filter)
+    if date_from:
+        logs = logs.filter(timestamp__date__gte=date_from)
+    if date_to:
+        logs = logs.filter(timestamp__date__lte=date_to)
+
+    paginator = Paginator(logs, 25)
+    page_number = request.GET.get('page')
+    page_obj = paginator.get_page(page_number)
+
+    action_types = ChangeLog.objects.values_list('action_type', flat=True).distinct().order_by('action_type')
+
+    context = {
+        'page_obj': page_obj,
+        'query': query,
+        'action_filter': action_filter,
+        'date_from': date_from,
+        'date_to': date_to,
+        'action_types': action_types,
+        'total_logs': logs.count(),
+    }
+    return render(request, 'receivables/report_audit_log.html', context)
 
 
 def builty_search(request):

@@ -2,24 +2,77 @@
 
 <div id="customer-fields-container" class="space-y-6">
     {% if customer_type == 'Regular' %}
-        <!-- Customer Name (LOV) -->
-        <div>
-            <label for="id_customer_id" class="block text-sm font-semibold text-slate-800 mb-2">
+        <!-- Existing Customer Dropdown (Search Bar appears inside dropdown on click) -->
+        <div class="relative" id="customer-select-wrapper">
+            <label for="customer_select_trigger" class="block text-sm font-semibold text-slate-800 mb-2">
                 {% trans "Customer Name" %} <span class="text-rose-500 font-bold">*</span>
             </label>
-            <select name="customer_id" id="id_customer_id" required
-                    hx-get="{% url 'receivables:htmx_form1_customer_details' %}"
-                    hx-target="#customer-fields-container"
-                    hx-swap="outerHTML"
-                    hx-include="[name='customer_type'], [name='delivery_mode']"
-                    class="w-full h-12 px-4 text-base bg-white border border-slate-300 rounded-xl focus:border-[#14B8A6] focus:ring-4 focus:ring-[#40E0D0]/30 outline-none transition-all">
-                <option value="">-- {% trans "Select Regular Customer" %} --</option>
-                {% for c in customers %}
-                <option value="{{ c.customer_id }}" {% if customer and customer.customer_id == c.customer_id %}selected{% endif %}>
-                    {{ c.customer_name }} {% if c.area_region %}({{ c.area_region }}){% endif %}
-                </option>
-                {% endfor %}
-            </select>
+
+            <input type="hidden" name="customer_id" id="id_customer_id"
+                   value="{% if customer %}{{ customer.customer_id }}{% endif %}"
+                   hx-get="{% url 'receivables:htmx_form1_customer_details' %}"
+                   hx-trigger="change"
+                   hx-target="#customer-fields-container"
+                   hx-swap="outerHTML"
+                   hx-include="[name='customer_type'], [name='delivery_mode']">
+
+            <!-- Single Select Field Trigger -->
+            <button type="button"
+                    id="customer_select_trigger"
+                    onclick="toggleCustomerSelectMenu()"
+                    class="w-full h-12 px-4 text-base bg-white border border-slate-300 rounded-xl focus:border-[#14B8A6] focus:ring-4 focus:ring-[#40E0D0]/30 outline-none transition-all flex items-center justify-between text-left cursor-pointer">
+                <span id="customer_select_label" class="truncate {% if customer %}text-slate-900 font-medium{% else %}text-slate-500{% endif %}">
+                    {% if customer %}{{ customer.customer_name }}{% if customer.area_region %} ({{ customer.area_region }}){% endif %}{% else %}-- {% trans "Select Regular Customer" %} --{% endif %}
+                </span>
+                <svg class="w-4 h-4 text-slate-500 flex-shrink-0 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+                </svg>
+            </button>
+
+            <!-- Dropdown Panel (Search bar at top + Options list) -->
+            <div id="customer_select_menu"
+                 style="display:none"
+                 class="absolute z-40 mt-1.5 w-full bg-white border border-slate-300 rounded-xl shadow-xl overflow-hidden">
+                <!-- Search Bar inside Dropdown -->
+                <div class="p-2.5 bg-slate-50 border-b border-slate-200">
+                    <div class="relative">
+                        <span class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3 text-slate-400">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+                            </svg>
+                        </span>
+                        <input type="text"
+                               id="customer_search_input"
+                               autocomplete="off"
+                               placeholder="{% trans 'Search customer...' %}"
+                               oninput="filterCustomerMenu(this.value)"
+                               onkeydown="if(event.key==='Escape') closeCustomerSelectMenu()"
+                               class="w-full h-10 pl-9 pr-3 text-sm bg-white border border-slate-300 rounded-lg focus:border-[#14B8A6] outline-none">
+                    </div>
+                </div>
+
+                <!-- Scrollable Options -->
+                <div id="customer_select_options" style="max-height:240px;overflow-y:auto" class="divide-y divide-slate-100">
+                    {% for c in customers %}
+                    <button type="button"
+                            data-id="{{ c.customer_id }}"
+                            data-label="{{ c.customer_name }}{% if c.area_region %} ({{ c.area_region }}){% endif %}"
+                            data-search="{{ c.customer_name|lower }} {{ c.area_region|default:''|lower }} {{ c.contact_number|default:''|lower }}"
+                            onclick="chooseCustomerOption(this)"
+                            class="customer-menu-option w-full text-left px-4 py-2.5 hover:bg-[#E8F0FB] transition-colors flex items-center justify-between gap-3 cursor-pointer {% if customer and customer.customer_id == c.customer_id %}bg-blue-50 text-[#0047AB] font-semibold{% else %}text-slate-800{% endif %}">
+                        <span class="text-sm truncate">{{ c.customer_name }}{% if c.area_region %} <span class="text-slate-500 font-normal">({{ c.area_region }})</span>{% endif %}</span>
+                        {% if customer and customer.customer_id == c.customer_id %}
+                        <svg class="w-4 h-4 text-[#0047AB] flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg>
+                        {% endif %}
+                    </button>
+                    {% empty %}
+                    <div class="px-4 py-3 text-sm text-slate-400 text-center">{% trans "No active customers found." %}</div>
+                    {% endfor %}
+                    <div id="customer_menu_empty" style="display:none" class="px-4 py-3 text-sm text-slate-400 text-center">
+                        {% trans "No matching customers." %}
+                    </div>
+                </div>
+            </div>
         </div>
 
         {% if credit_warning %}
@@ -29,7 +82,7 @@
         </div>
         {% endif %}
 
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-7">
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-7">
             <!-- Contact Number (Fetched / Read-only) -->
             <div>
                 <label class="block text-sm font-semibold text-slate-800 mb-2">
@@ -52,7 +105,7 @@
                        placeholder="{% trans 'Auto-filled from Master' %}"
                        class="w-full h-12 px-4 text-base bg-slate-100 text-slate-700 border border-slate-200 rounded-xl cursor-not-allowed select-none">
                 {% else %}
-                <input type="text" disabled value="{% trans 'Office Collection (Not required)' %}"
+                <input type="text" disabled value="{% trans 'Office Collection' %}"
                        class="w-full h-12 px-4 text-base bg-slate-100 text-slate-400 border border-slate-200 rounded-xl cursor-not-allowed">
                 <input type="hidden" name="delivery_address" value="">
                 {% endif %}
@@ -61,7 +114,7 @@
 
     {% else %}
         <!-- Walk-in Customer Fields -->
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-7">
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-7">
             <div>
                 <label for="id_customer_name" class="block text-sm font-semibold text-slate-800 mb-2">
                     {% trans "Customer Name" %} <span class="text-rose-500 font-bold">*</span>
@@ -93,7 +146,7 @@
                    placeholder="{% trans 'Delivery premises address' %}"
                    class="w-full h-12 px-4 text-base bg-white border border-slate-300 rounded-xl focus:border-[#14B8A6] focus:ring-4 focus:ring-[#40E0D0]/30 outline-none transition-all">
             {% else %}
-            <input type="text" disabled value="{% trans 'Office Collection (Not required)' %}"
+            <input type="text" disabled value="{% trans 'Office Collection' %}"
                    class="w-full h-12 px-4 text-base bg-slate-100 text-slate-400 border border-slate-200 rounded-xl cursor-not-allowed">
             <input type="hidden" name="delivery_address" value="">
             {% endif %}

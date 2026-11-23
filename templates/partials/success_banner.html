@@ -14,7 +14,7 @@
                 </span>
             </div>
             
-            <p class="text-sm text-emerald-700 font-medium">{% trans "Receiving Reference No." %}</p>
+            <p class="text-sm text-emerald-700 font-medium">{{ ref_label|default:_("Receiving Reference No.") }}</p>
             <div class="flex items-center gap-4 flex-wrap">
                 <span class="text-3xl md:text-4xl font-extrabold tracking-wider font-mono text-emerald-900 bg-white px-4 py-2 rounded-xl border border-emerald-300 shadow-inner">
                     {{ ref_no }}

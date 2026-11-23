@@ -7,6 +7,8 @@ urlpatterns = [
     # Consignment Receiving as root and default view
     path('', views.form1_receiving, name='form1_receiving'),
     path('form1/', views.form1_receiving, name='form1_receiving_direct'),
+    path('form1/update-status/', views.update_builty_status, name='update_builty_status'),
+    path('audit-logs/', views.audit_logs_report, name='audit_logs_report'),
     path('form1/customer-details/', views.htmx_form1_customer_details, name='htmx_form1_customer_details'),
     path('form1/calc-balance/', views.htmx_form1_balance_calc, name='htmx_form1_balance_calc'),
 
