@@ -1,75 +1,222 @@
 {% extends "base.html" %}
 {% load i18n humanize %}
 
-{% block title %}{% trans "Form 4: Loss and Damage Settlement" %}{% endblock %}
-{% block page_title %}{% trans "Form 4: Loss & Damage Settlement" %}{% endblock %}
+{% block title %}{% trans "Loss & Damage Settlement" %}{% endblock %}
+{% block page_title %}{% trans "Loss & Damage Settlement" %}{% endblock %}
 
 {% block content %}
-<div class="max-w-3xl mx-auto space-y-6">
+<div class="space-y-8">
 
-    {% if success_data %}
-        {% include "partials/success_banner.html" with ref_no=success_data.consignment.form_no title=_("Loss/Damage Settlement Completed") extra_info=_("Builty marked CLOSED. Settlement compensation recorded.") status=success_data.consignment.status new_entry_url=request.path %}
-    {% endif %}
-
-    <div class="bg-white rounded-2xl border border-slate-200/70 shadow-lg shadow-slate-200/60 p-6 sm:p-10">
-        <div class="border-b border-slate-200 pb-5 mb-8">
-            <h2 class="text-2xl font-bold text-slate-900 tracking-tight">{% trans "Loss and Damage Settlement" %}</h2>
-            <p class="text-sm text-slate-500 mt-1">
-                {% trans "Used only for builties where Goods Condition at Receipt is Lost or Damaged. Record compensation paid to settle the claim." %}
-            </p>
+    <!-- ====================================================================== -->
+    <!-- CARD 1: LOSS & DAMAGE SETTLEMENT FORM                                  -->
+    <!-- ====================================================================== -->
+    <div class="bg-white rounded-2xl border border-slate-200/80 shadow-lg shadow-slate-200/50 p-6 sm:p-8">
+        <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between border-b border-slate-100 pb-4 mb-6 gap-3">
+            <div class="flex items-center gap-3">
+                <span class="w-8 h-8 rounded-lg bg-[#0047AB]/10 text-[#0047AB] flex items-center justify-center font-bold text-sm">1</span>
+                <h3 class="text-base font-bold text-[#0047AB] uppercase tracking-wide">
+                    {% trans "Loss & Damage Claim Settlement" %}
+                </h3>
+            </div>
+            <div class="flex items-center gap-2 flex-wrap">
+                <span class="text-xs font-semibold px-3 py-1 bg-rose-50 text-rose-700 border border-rose-200 rounded-full">
+                    {% trans "Pending Claims:" %} <strong>{{ pending_claims_count }}</strong>
+                </span>
+                <span class="text-xs font-semibold px-3 py-1 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-full">
+                    {% trans "Settled:" %} <strong>{{ settled_claims_count }}</strong>
+                </span>
+            </div>
         </div>
 
         {% if errors.non_field %}
-        <div class="mb-8 p-4 rounded-xl bg-rose-50 border-2 border-rose-300 text-rose-900 flex items-start gap-3">
-            <svg class="w-6 h-6 text-rose-600 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+        <div class="mb-6 p-4 rounded-xl bg-rose-50 border border-rose-300 text-rose-900 flex items-start gap-3">
+            <svg class="w-5 h-5 text-rose-600 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+            </svg>
             <div>
-                <h4 class="text-sm font-bold uppercase tracking-wider text-rose-800">{% trans "Error" %}</h4>
-                <p class="text-base font-medium mt-0.5">{{ errors.non_field }}</p>
+                <h4 class="text-xs font-bold uppercase tracking-wider text-rose-800">{% trans "Validation Error" %}</h4>
+                <p class="text-sm font-medium mt-0.5">{{ errors.non_field }}</p>
             </div>
         </div>
         {% endif %}
 
-        <form method="post" action="{% url 'receivables:form4_settlement' %}" class="space-y-10">
+        <form method="post" action="{% url 'receivables:form4_settlement' %}" class="space-y-8">
             {% csrf_token %}
 
-            <!-- The ONLY typed key: Receiving Reference No. -->
-            <div>
-                <label for="id_form_no" class="block text-lg font-bold text-slate-900 mb-1">
-                    {% trans "Receiving Reference No." %} <span class="text-rose-500 font-bold">*</span>
-                </label>
-                <p class="text-xs text-slate-500 mb-2">
-                    {% trans "Type the reference number of the lost or damaged consignment." %}
-                </p>
-                <div class="relative">
-                    <input type="text" name="form_no" id="id_form_no" required autofocus
-                           value="{{ form_no_input }}"
-                           placeholder="MB-2026-000001"
-                           hx-get="{% url 'receivables:htmx_form4_lookup' %}"
-                           hx-target="#form4-builty-details-container"
-                           hx-swap="outerHTML"
-                           hx-trigger="keyup changed delay:400ms, change"
-                           class="w-full h-14 px-4 text-xl font-mono uppercase font-bold bg-white border-2 border-rose-200 focus:border-rose-600 focus:ring-4 focus:ring-rose-100 rounded-xl outline-none transition-all shadow-xs">
-                    <div class="absolute inset-y-0 right-0 pr-4 flex items-center pointer-events-none text-rose-500">
-                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+            <!-- Step 1: Receiving Reference No. Lookup -->
+            <div class="space-y-4">
+                <h4 class="text-base font-bold text-[#0047AB] uppercase tracking-wide border-l-4 border-[#14B8A6] pl-3">
+                    {% trans "Lookup Lost / Damaged Consignment" %}
+                </h4>
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-6 items-end">
+                    <div class="md:col-span-2">
+                        <label for="id_form_no" class="text-sm font-semibold text-slate-800">
+                            {% trans "Receiving Reference No." %} <span class="text-rose-500 font-bold">*</span>
+                        </label>
+                        <div class="relative">
+                            <input type="text" name="form_no" id="id_form_no" required autofocus
+                                   value="{{ form_no_input }}"
+                                   placeholder="{% trans 'e.g. MB-2026-000001' %}"
+                                   hx-get="{% url 'receivables:htmx_form4_lookup' %}"
+                                   hx-target="#form4-builty-details-container"
+                                   hx-swap="outerHTML"
+                                   hx-trigger="keyup changed delay:350ms, change"
+                                   class="w-full h-12 px-4 pr-11 text-lg font-mono uppercase font-bold bg-white border border-slate-300 focus:border-[#14B8A6] focus:ring-2 focus:ring-[#40E0D0]/30 rounded-xl outline-none transition-all">
+                            <div class="absolute inset-y-0 right-0 pr-3.5 flex items-center pointer-events-none text-[#0047AB]">
+                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+                                </svg>
+                            </div>
+                        </div>
+                    </div>
+                    <div>
+                        <button type="button"
+                                onclick="htmx.trigger(document.getElementById('id_form_no'), 'change')"
+                                class="w-full h-12 px-5 bg-slate-100 hover:bg-slate-200 text-slate-800 font-semibold text-sm rounded-xl border border-slate-200 transition-all cursor-pointer flex items-center justify-center gap-2">
+                            <svg class="w-4 h-4 text-[#0047AB]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+                            </svg>
+                            <span>{% trans "Check Claim Eligibility" %}</span>
+                        </button>
                     </div>
                 </div>
             </div>
 
             <!-- Dynamic Builty Details & Settlement Container -->
-            <div id="form4-builty-details-container">
-                {% if form_no_input %}
-                    <div hx-get="{% url 'receivables:htmx_form4_lookup' %}?form_no={{ form_no_input }}"
-                         hx-trigger="load"
-                         hx-target="#form4-builty-details-container"
-                         hx-swap="outerHTML">
-                        <p class="text-center text-slate-400 py-6">{% trans "Checking builty status..." %}</p>
-                    </div>
-                {% else %}
-                    {% include "receivables/partials/form4_builty_details.html" %}
-                {% endif %}
-            </div>
+            {% include "receivables/partials/form4_builty_details.html" %}
         </form>
     </div>
+
+    <!-- ====================================================================== -->
+    <!-- CARD 2: FLAGGED LOST & DAMAGED BUILTIES GRID                           -->
+    <!-- ====================================================================== -->
+    <div class="bg-white rounded-2xl border border-slate-200/80 shadow-lg shadow-slate-200/50 overflow-hidden">
+        <div class="px-6 py-5 border-b border-slate-200 space-y-4">
+            <div class="flex items-center gap-3">
+                <span class="w-8 h-8 rounded-lg bg-slate-100 text-slate-700 flex items-center justify-center font-bold text-sm">2</span>
+                <h3 class="text-base font-bold text-slate-900">{% trans "Lost & Damaged Builties" %}</h3>
+            </div>
+
+            <form method="get" action="{% url 'receivables:form4_settlement' %}"
+                  style="display:flex;flex-wrap:wrap;align-items:center;gap:12px">
+                <input type="text" name="q" value="{{ query }}"
+                       placeholder="{% trans 'Search Ref No, Builty, Customer...' %}"
+                       style="flex:2 1 200px;min-width:180px"
+                       class="h-11 px-3 text-sm rounded-xl border border-slate-300 focus:border-[#14B8A6] outline-none">
+                <select name="condition" style="flex:1 1 140px;min-width:130px"
+                        class="h-11 px-3 text-sm rounded-xl border border-slate-300 focus:border-[#14B8A6] outline-none">
+                    <option value="">{% trans "Condition" %}</option>
+                    <option value="Lost" {% if condition_filter == 'Lost' %}selected{% endif %}>{% trans "Lost" %}</option>
+                    <option value="Damaged" {% if condition_filter == 'Damaged' %}selected{% endif %}>{% trans "Damaged" %}</option>
+                </select>
+                <select name="settlement_status" style="flex:1 1 140px;min-width:130px"
+                        class="h-11 px-3 text-sm rounded-xl border border-slate-300 focus:border-[#14B8A6] outline-none">
+                    <option value="">{% trans "Settlement Status" %}</option>
+                    <option value="Pending" {% if settlement_filter == 'Pending' %}selected{% endif %}>{% trans "Pending" %}</option>
+                    <option value="Settled" {% if settlement_filter == 'Settled' %}selected{% endif %}>{% trans "Settled" %}</option>
+                </select>
+                <button type="submit" style="flex:0 0 auto"
+                        class="h-11 px-6 bg-[#0047AB] hover:bg-[#003A8C] text-white text-sm font-semibold rounded-xl transition-all cursor-pointer">
+                    {% trans "Search" %}
+                </button>
+                {% if query or condition_filter or settlement_filter %}
+                <a href="{% url 'receivables:form4_settlement' %}" style="flex:0 0 auto"
+                   class="h-11 px-5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-sm font-semibold rounded-xl flex items-center">
+                    {% trans "Clear" %}
+                </a>
+                {% endif %}
+            </form>
+        </div>
+
+        <div class="overflow-x-auto">
+            <table class="w-full min-w-[1050px] text-left text-sm text-slate-600 whitespace-nowrap" style="border-collapse:separate;border-spacing:0">
+                <thead class="bg-slate-50 text-xs uppercase font-semibold text-slate-500 border-b border-slate-200">
+                    <tr>
+                        <th class="px-5 py-3.5">{% trans "Reference No." %}</th>
+                        <th class="px-5 py-3.5">{% trans "Builty No." %}</th>
+                        <th class="px-5 py-3.5">{% trans "Customer" %}</th>
+                        <th class="px-5 py-3.5 text-center">{% trans "Condition" %}</th>
+                        <th class="px-5 py-3.5 text-right">{% trans "Total Freight" %}</th>
+                        <th class="px-5 py-3.5 text-right">{% trans "Advance" %}</th>
+                        <th class="px-5 py-3.5 text-right">{% trans "Compensation Paid" %}</th>
+                        <th class="px-5 py-3.5 text-center">{% trans "Settlement Status" %}</th>
+                        <th class="px-5 py-3.5 text-center">{% trans "Action" %}</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-100">
+                    {% for b in page_obj %}
+                    <tr class="hover:bg-slate-50/80 transition-colors {% if form_no_input == b.form_no %}bg-blue-50/50{% endif %}">
+                        <td class="px-5 py-3 font-mono font-bold text-[#0047AB]">{{ b.form_no }}</td>
+                        <td class="px-5 py-3 font-mono font-semibold text-slate-900">{{ b.builty_no }}</td>
+                        <td class="px-5 py-3">
+                            <div class="font-bold text-slate-900">{{ b.customer_name }}</div>
+                            <div class="text-xs text-slate-500">{{ b.contact_number }}</div>
+                        </td>
+                        <td class="px-5 py-3 text-center">
+                            {% if b.goods_condition == 'Lost' %}
+                            <span class="inline-flex px-2.5 py-0.5 rounded-full text-xs font-bold bg-rose-100 text-rose-800 border border-rose-300">{% trans "Lost" %}</span>
+                            {% else %}
+                            <span class="inline-flex px-2.5 py-0.5 rounded-full text-xs font-bold bg-amber-100 text-amber-800 border border-amber-300">{% trans "Damaged" %}</span>
+                            {% endif %}
+                        </td>
+                        <td class="px-5 py-3 text-right font-mono text-slate-800">Rs. {{ b.total_amount|floatformat:2|intcomma }}</td>
+                        <td class="px-5 py-3 text-right font-mono text-slate-600">Rs. {{ b.advance_received|floatformat:2|intcomma }}</td>
+                        <td class="px-5 py-3 text-right font-mono font-bold text-slate-900">
+                            {% if b.settlement %}
+                                Rs. {{ b.settlement.amount_paid_to_customer|floatformat:2|intcomma }}
+                            {% else %}
+                                <span class="text-slate-400 font-normal">--</span>
+                            {% endif %}
+                        </td>
+                        <td class="px-5 py-3 text-center">
+                            {% if b.settlement %}
+                            <span class="inline-flex px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-100 text-emerald-800 border border-emerald-200">
+                                {% trans "Settled" %} ({{ b.settlement.settlement_date|date:"d M Y" }})
+                            </span>
+                            {% else %}
+                            <span class="inline-flex px-2.5 py-0.5 rounded-full text-xs font-semibold bg-rose-50 text-rose-700 border border-rose-200">
+                                {% trans "Pending" %}
+                            </span>
+                            {% endif %}
+                        </td>
+                        <td class="px-5 py-3 text-center">
+                            {% if b.settlement %}
+                            <span class="text-xs text-slate-400 italic">{% trans "Closed" %}</span>
+                            {% else %}
+                            <a href="{% url 'receivables:form4_settlement' %}?form_no={{ b.form_no }}"
+                               class="inline-flex items-center px-3.5 py-1.5 text-xs font-bold bg-[#0047AB] hover:bg-[#003A8C] text-white rounded-lg shadow-xs transition-all">
+                                {% trans "Settle" %}
+                            </a>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="9" class="px-6 py-10 text-center text-slate-400">
+                            <p class="text-base font-semibold">{% trans "No Lost or Damaged builties found matching your search." %}</p>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        {% if page_obj.has_other_pages %}
+        <div class="px-6 py-3.5 border-t border-slate-200 flex items-center justify-between text-sm">
+            <span class="text-slate-500">{% trans "Page" %} {{ page_obj.number }} {% trans "of" %} {{ page_obj.paginator.num_pages }}</span>
+            <div class="flex items-center gap-2">
+                {% if page_obj.has_previous %}
+                <a href="?page={{ page_obj.previous_page_number }}{% if query %}&q={{ query }}{% endif %}{% if condition_filter %}&condition={{ condition_filter }}{% endif %}{% if settlement_filter %}&settlement_status={{ settlement_filter }}{% endif %}"
+                   class="px-3 py-1.5 border border-slate-300 rounded-xl text-slate-600 hover:bg-slate-50">{% trans "Previous" %}</a>
+                {% endif %}
+                {% if page_obj.has_next %}
+                <a href="?page={{ page_obj.next_page_number }}{% if query %}&q={{ query }}{% endif %}{% if condition_filter %}&condition={{ condition_filter }}{% endif %}{% if settlement_filter %}&settlement_status={{ settlement_filter }}{% endif %}"
+                   class="px-3 py-1.5 border border-slate-300 rounded-xl text-slate-600 hover:bg-slate-50">{% trans "Next" %}</a>
+                {% endif %}
+            </div>
+        </div>
+        {% endif %}
+    </div>
+
 </div>
 {% endblock %}
-

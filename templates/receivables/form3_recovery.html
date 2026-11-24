@@ -1,75 +1,247 @@
 {% extends "base.html" %}
 {% load i18n humanize %}
 
-{% block title %}{% trans "Form 3: Agent Recovery" %}{% endblock %}
-{% block page_title %}{% trans "Form 3: Agent Cash Recovery" %}{% endblock %}
+{% block title %}{% trans "Agent Recovery" %}{% endblock %}
+{% block page_title %}{% trans "Agent Cash Recovery" %}{% endblock %}
 
 {% block content %}
-<div class="max-w-3xl mx-auto space-y-6">
+<div class="space-y-8">
 
-    {% if success_data %}
-        {% include "partials/success_banner.html" with ref_no=success_data.consignment.form_no title=_("Agent Recovery Recorded Successfully") extra_info=_("Remaining Balance: Rs. ") status=success_data.consignment.status new_entry_url=request.path %}
-    {% endif %}
-
-    <div class="bg-white rounded-2xl border border-slate-200/70 shadow-lg shadow-slate-200/60 p-6 sm:p-10">
-        <div class="border-b border-slate-200 pb-5 mb-8">
-            <h2 class="text-2xl font-bold text-slate-900 tracking-tight">{% trans "Record Agent Cash Recovery" %}</h2>
-            <p class="text-sm text-slate-500 mt-1">
-                {% trans "Used when an assigned field agent recovers pending cash from a customer after delivery." %}
-            </p>
+    <!-- ====================================================================== -->
+    <!-- CARD 1: AGENT RECOVERY ENTRY FORM                                      -->
+    <!-- ====================================================================== -->
+    <div class="bg-white rounded-2xl border border-slate-200/80 shadow-lg shadow-slate-200/50 p-6 sm:p-8">
+        <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between border-b border-slate-100 pb-4 mb-6 gap-3">
+            <div class="flex items-center gap-3">
+                <span class="w-8 h-8 rounded-lg bg-[#0047AB]/10 text-[#0047AB] flex items-center justify-center font-bold text-sm">1</span>
+                <h3 class="text-base font-bold text-[#0047AB] uppercase tracking-wide">
+                    {% trans "Agent Cash Recovery" %}
+                </h3>
+            </div>
+            <div class="flex items-center gap-2 flex-wrap">
+                <span class="text-xs font-semibold px-3 py-1 bg-blue-50 text-[#0047AB] border border-blue-200 rounded-full">
+                    {% trans "Recoverable Builties:" %} <strong>{{ total_recoverable_count }}</strong>
+                </span>
+                <span class="text-xs font-semibold px-3 py-1 bg-rose-50 text-rose-700 border border-rose-200 rounded-full font-mono">
+                    {% trans "Total Outstanding:" %} <strong>Rs. {{ total_recoverable_amount|floatformat:2|intcomma }}</strong>
+                </span>
+            </div>
         </div>
 
         {% if errors.non_field %}
-        <div class="mb-8 p-4 rounded-xl bg-rose-50 border-2 border-rose-300 text-rose-900 flex items-start gap-3">
-            <svg class="w-6 h-6 text-rose-600 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+        <div class="mb-6 p-4 rounded-xl bg-rose-50 border border-rose-300 text-rose-900 flex items-start gap-3">
+            <svg class="w-5 h-5 text-rose-600 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+            </svg>
             <div>
-                <h4 class="text-sm font-bold uppercase tracking-wider text-rose-800">{% trans "Error" %}</h4>
-                <p class="text-base font-medium mt-0.5">{{ errors.non_field }}</p>
+                <h4 class="text-xs font-bold uppercase tracking-wider text-rose-800">{% trans "Validation Error" %}</h4>
+                <p class="text-sm font-medium mt-0.5">{{ errors.non_field }}</p>
             </div>
         </div>
         {% endif %}
 
-        <form method="post" action="{% url 'receivables:form3_recovery' %}" class="space-y-10">
+        <form method="post" action="{% url 'receivables:form3_recovery' %}" class="space-y-8">
             {% csrf_token %}
 
-            <!-- The ONLY typed key: Receiving Reference No. -->
-            <div>
-                <label for="id_form_no" class="block text-lg font-bold text-slate-900 mb-1">
-                    {% trans "Receiving Reference No." %} <span class="text-rose-500 font-bold">*</span>
-                </label>
-                <p class="text-xs text-slate-500 mb-2">
-                    {% trans "Type the reference number (e.g. MB-2026-000001). Details will load automatically." %}
-                </p>
-                <div class="relative">
-                    <input type="text" name="form_no" id="id_form_no" required autofocus
-                           value="{{ form_no_input }}"
-                           placeholder="MB-2026-000001"
-                           hx-get="{% url 'receivables:htmx_form3_lookup' %}"
-                           hx-target="#form3-builty-details-container"
-                           hx-swap="outerHTML"
-                           hx-trigger="keyup changed delay:400ms, change"
-                           class="w-full h-14 px-4 text-xl font-mono uppercase font-bold bg-white border-2 border-blue-200 focus:border-blue-600 focus:ring-4 focus:ring-[#40E0D0]/30 rounded-xl outline-none transition-all shadow-xs">
-                    <div class="absolute inset-y-0 right-0 pr-4 flex items-center pointer-events-none text-blue-500">
-                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+            <!-- Step 1: Receiving Reference No. Lookup -->
+            <div class="space-y-4">
+                <h4 class="text-base font-bold text-[#0047AB] uppercase tracking-wide border-l-4 border-[#14B8A6] pl-3">
+                    {% trans "Lookup Consignment" %}
+                </h4>
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-6 items-end">
+                    <div class="md:col-span-2">
+                        <label for="id_form_no" class="text-sm font-semibold text-slate-800">
+                            {% trans "Receiving Reference No." %} <span class="text-rose-500 font-bold">*</span>
+                        </label>
+                        <div class="relative">
+                            <input type="text" name="form_no" id="id_form_no" required autofocus
+                                   value="{{ form_no_input }}"
+                                   placeholder="{% trans 'e.g. MB-2026-000001' %}"
+                                   hx-get="{% url 'receivables:htmx_form3_lookup' %}"
+                                   hx-target="#form3-builty-details-container"
+                                   hx-swap="outerHTML"
+                                   hx-trigger="keyup changed delay:350ms, change"
+                                   class="w-full h-12 px-4 pr-11 text-lg font-mono uppercase font-bold bg-white border border-slate-300 focus:border-[#14B8A6] focus:ring-2 focus:ring-[#40E0D0]/30 rounded-xl outline-none transition-all">
+                            <div class="absolute inset-y-0 right-0 pr-3.5 flex items-center pointer-events-none text-[#0047AB]">
+                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+                                </svg>
+                            </div>
+                        </div>
+                    </div>
+                    <div>
+                        <button type="button"
+                                onclick="htmx.trigger(document.getElementById('id_form_no'), 'change')"
+                                class="w-full h-12 px-5 bg-slate-100 hover:bg-slate-200 text-slate-800 font-semibold text-sm rounded-xl border border-slate-200 transition-all cursor-pointer flex items-center justify-center gap-2">
+                            <svg class="w-4 h-4 text-[#0047AB]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+                            </svg>
+                            <span>{% trans "Load Builty Details" %}</span>
+                        </button>
                     </div>
                 </div>
             </div>
 
-            <!-- Dynamic Builty Details & Agent Entry Container -->
-            <div id="form3-builty-details-container">
-                {% if form_no_input %}
-                    <div hx-get="{% url 'receivables:htmx_form3_lookup' %}?form_no={{ form_no_input }}"
-                         hx-trigger="load"
-                         hx-target="#form3-builty-details-container"
-                         hx-swap="outerHTML">
-                        <p class="text-center text-slate-400 py-6">{% trans "Loading builty details..." %}</p>
-                    </div>
-                {% else %}
-                    {% include "receivables/partials/form3_builty_details.html" %}
-                {% endif %}
-            </div>
+            <!-- Dynamic Builty Details & Agent Recovery Entry Container -->
+            {% include "receivables/partials/form3_builty_details.html" %}
         </form>
     </div>
+
+    <!-- ====================================================================== -->
+    <!-- CARD 2: RECOVERABLE BUILTIES SEARCH GRID (BALANCE > 0)                 -->
+    <!-- ====================================================================== -->
+    <div class="bg-white rounded-2xl border border-slate-200/80 shadow-lg shadow-slate-200/50 overflow-hidden">
+        <div class="px-6 py-5 border-b border-slate-200 space-y-4">
+            <div class="flex items-center gap-3">
+                <span class="w-8 h-8 rounded-lg bg-slate-100 text-slate-700 flex items-center justify-center font-bold text-sm">2</span>
+                <h3 class="text-base font-bold text-slate-900">{% trans "Open Builties" %}</h3>
+                <span class="text-xs font-semibold px-2.5 py-1 bg-slate-100 text-slate-600 rounded-xl">{{ total_recoverable_count }}</span>
+            </div>
+
+            <form method="get" action="{% url 'receivables:form3_recovery' %}"
+                  style="display:flex;flex-wrap:wrap;align-items:center;gap:12px">
+                <input type="text" name="q" value="{{ query }}"
+                       placeholder="{% trans 'Search Ref No, Builty, Customer, Area...' %}"
+                       style="flex:2 1 200px;min-width:180px"
+                       class="h-11 px-3 text-sm rounded-xl border border-slate-300 focus:border-[#14B8A6] outline-none">
+                <select name="delivery_status" style="flex:1 1 140px;min-width:130px"
+                        class="h-11 px-3 text-sm rounded-xl border border-slate-300 focus:border-[#14B8A6] outline-none">
+                    <option value="">{% trans "Delivery Status" %}</option>
+                    {% for val, label in delivery_statuses %}
+                    <option value="{{ val }}" {% if delivery_filter == val %}selected{% endif %}>{{ label }}</option>
+                    {% endfor %}
+                </select>
+                <button type="submit" style="flex:0 0 auto"
+                        class="h-11 px-6 bg-[#0047AB] hover:bg-[#003A8C] text-white text-sm font-semibold rounded-xl transition-all cursor-pointer">
+                    {% trans "Search" %}
+                </button>
+                {% if query or delivery_filter %}
+                <a href="{% url 'receivables:form3_recovery' %}" style="flex:0 0 auto"
+                   class="h-11 px-5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-sm font-semibold rounded-xl flex items-center">
+                    {% trans "Clear" %}
+                </a>
+                {% endif %}
+            </form>
+        </div>
+
+        <div class="overflow-x-auto">
+            <table class="w-full min-w-[1050px] text-left text-sm text-slate-600 whitespace-nowrap" style="border-collapse:separate;border-spacing:0">
+                <thead class="bg-slate-50 text-xs uppercase font-semibold text-slate-500 border-b border-slate-200">
+                    <tr>
+                        <th class="px-5 py-3.5">{% trans "Reference No." %}</th>
+                        <th class="px-5 py-3.5">{% trans "Builty No." %}</th>
+                        <th class="px-5 py-3.5">{% trans "Customer" %}</th>
+                        <th class="px-5 py-3.5">{% trans "Area / Region" %}</th>
+                        <th class="px-5 py-3.5 text-center">{% trans "Delivery" %}</th>
+                        <th class="px-5 py-3.5 text-right">{% trans "Gross Billed" %}</th>
+                        <th class="px-5 py-3.5 text-right">{% trans "Recovered / Adv." %}</th>
+                        <th class="px-5 py-3.5 text-right">{% trans "Opening Balance" %}</th>
+                        <th class="px-5 py-3.5 text-center">{% trans "Action" %}</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-100">
+                    {% for b in page_obj %}
+                    <tr class="hover:bg-slate-50/80 transition-colors {% if form_no_input == b.form_no %}bg-blue-50/50{% endif %}">
+                        <td class="px-5 py-3 font-mono font-bold text-[#0047AB]">{{ b.form_no }}</td>
+                        <td class="px-5 py-3 font-mono font-semibold text-slate-900">{{ b.builty_no }}</td>
+                        <td class="px-5 py-3">
+                            <div class="font-bold text-slate-900">{{ b.customer_name }}</div>
+                            <div class="text-xs text-slate-500">{{ b.contact_number }}</div>
+                        </td>
+                        <td class="px-5 py-3 text-xs font-medium text-slate-700">
+                            {% if b.customer and b.customer.area_region %}{{ b.customer.area_region }}{% else %}<span class="text-slate-400">--</span>{% endif %}
+                        </td>
+                        <td class="px-5 py-3 text-center">
+                            {% if b.delivery_status == 'Delivered' %}
+                            <span class="inline-flex px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-100 text-emerald-800 border border-emerald-200">{{ b.delivery_status }}</span>
+                            {% else %}
+                            <span class="inline-flex px-2.5 py-0.5 rounded-full text-xs font-semibold bg-amber-50 text-amber-800 border border-amber-200">{{ b.delivery_status }}</span>
+                            {% endif %}
+                        </td>
+                        <td class="px-5 py-3 text-right font-mono text-slate-800">Rs. {{ b.gross_amount|floatformat:2|intcomma }}</td>
+                        <td class="px-5 py-3 text-right font-mono text-emerald-700">Rs. {{ b.cumulative_received|floatformat:2|intcomma }}</td>
+                        <td class="px-5 py-3 text-right font-mono font-bold text-rose-700">Rs. {{ b.receivable_amount|floatformat:2|intcomma }}</td>
+                        <td class="px-5 py-3 text-center">
+                            <a href="{% url 'receivables:form3_recovery' %}?form_no={{ b.form_no }}"
+                               class="inline-flex items-center px-3.5 py-1.5 text-xs font-bold bg-[#0047AB] hover:bg-[#003A8C] text-white rounded-lg shadow-xs transition-all">
+                                {% trans "Recover" %}
+                            </a>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="9" class="px-6 py-10 text-center text-slate-400">
+                            <p class="text-base font-semibold">{% trans "No open builties with pending balance found." %}</p>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        {% if page_obj.has_other_pages %}
+        <div class="px-6 py-3.5 border-t border-slate-200 flex items-center justify-between text-sm">
+            <span class="text-slate-500">{% trans "Page" %} {{ page_obj.number }} {% trans "of" %} {{ page_obj.paginator.num_pages }}</span>
+            <div class="flex items-center gap-2">
+                {% if page_obj.has_previous %}
+                <a href="?page={{ page_obj.previous_page_number }}{% if query %}&q={{ query }}{% endif %}{% if delivery_filter %}&delivery_status={{ delivery_filter }}{% endif %}"
+                   class="px-3 py-1.5 border border-slate-300 rounded-xl text-slate-600 hover:bg-slate-50">{% trans "Previous" %}</a>
+                {% endif %}
+                {% if page_obj.has_next %}
+                <a href="?page={{ page_obj.next_page_number }}{% if query %}&q={{ query }}{% endif %}{% if delivery_filter %}&delivery_status={{ delivery_filter }}{% endif %}"
+                   class="px-3 py-1.5 border border-slate-300 rounded-xl text-slate-600 hover:bg-slate-50">{% trans "Next" %}</a>
+                {% endif %}
+            </div>
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- ====================================================================== -->
+    <!-- CARD 3: RECENT AGENT RECOVERIES LOG                                    -->
+    <!-- ====================================================================== -->
+    {% if recent_recoveries %}
+    <div class="bg-white rounded-2xl border border-slate-200/80 shadow-lg shadow-slate-200/50 overflow-hidden">
+        <div class="px-6 py-5 border-b border-slate-200 flex items-center justify-between">
+            <h3 class="text-base font-bold text-slate-900">{% trans "Recent Agent Recoveries" %}</h3>
+            <span class="text-xs font-semibold px-3 py-1 bg-slate-100 text-slate-600 rounded-full">
+                {{ recent_recoveries|length }}
+            </span>
+        </div>
+
+        <div class="overflow-x-auto">
+            <table class="w-full min-w-[900px] text-left text-sm text-slate-600 whitespace-nowrap" style="border-collapse:separate;border-spacing:0">
+                <thead class="bg-slate-50 text-xs uppercase font-semibold text-slate-500 border-b border-slate-200">
+                    <tr>
+                        <th class="px-5 py-3">{% trans "Receipt #" %}</th>
+                        <th class="px-5 py-3">{% trans "Date" %}</th>
+                        <th class="px-5 py-3">{% trans "Reference No." %}</th>
+                        <th class="px-5 py-3">{% trans "Customer" %}</th>
+                        <th class="px-5 py-3">{% trans "Collection Agent" %}</th>
+                        <th class="px-5 py-3 text-center">{% trans "Mode" %}</th>
+                        <th class="px-5 py-3 text-right">{% trans "Amount Collected" %}</th>
+                        <th class="px-5 py-3 text-right">{% trans "Closing Balance" %}</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-100">
+                    {% for r in recent_recoveries %}
+                    <tr class="hover:bg-slate-50/80 transition-colors">
+                        <td class="px-5 py-3 font-mono text-slate-400">#{{ r.receipt_id }}</td>
+                        <td class="px-5 py-3 text-slate-700">{{ r.receipt_date|date:"d M Y" }}</td>
+                        <td class="px-5 py-3 font-mono font-bold text-[#0047AB]">{{ r.consignment.form_no }}</td>
+                        <td class="px-5 py-3 font-semibold text-slate-900">{{ r.consignment.customer_name }}</td>
+                        <td class="px-5 py-3 font-medium text-slate-800">
+                            {% if r.agent %}{{ r.agent.agent_name }}{% if r.agent.area_region %} <span class="text-xs text-slate-500">({{ r.agent.area_region }})</span>{% endif %}{% else %}--{% endif %}
+                        </td>
+                        <td class="px-5 py-3 text-center text-xs font-semibold">{{ r.payment_mode }}</td>
+                        <td class="px-5 py-3 text-right font-mono font-bold text-emerald-700">Rs. {{ r.amount_received|floatformat:2|intcomma }}</td>
+                        <td class="px-5 py-3 text-right font-mono text-slate-800">Rs. {{ r.receivable_after|floatformat:2|intcomma }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    {% endif %}
+
 </div>
 {% endblock %}
-

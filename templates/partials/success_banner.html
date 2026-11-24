@@ -6,22 +6,26 @@
             <div class="flex items-center gap-2">
                 <span class="p-1.5 bg-emerald-600 text-white rounded-2xl">
                     <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/>
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7" />
                     </svg>
                 </span>
                 <span class="text-sm font-bold uppercase tracking-wider text-emerald-800">
                     {{ title|default:_("Saved Successfully") }}
                 </span>
             </div>
-            
+
             <p class="text-sm text-emerald-700 font-medium">{{ ref_label|default:_("Receiving Reference No.") }}</p>
             <div class="flex items-center gap-4 flex-wrap">
-                <span class="text-3xl md:text-4xl font-extrabold tracking-wider font-mono text-emerald-900 bg-white px-4 py-2 rounded-xl border border-emerald-300 shadow-inner">
+                <span
+                    class="text-3xl md:text-4xl font-extrabold tracking-wider font-mono text-emerald-900 bg-white px-4 py-2 rounded-xl border border-emerald-300 shadow-inner">
                     {{ ref_no }}
                 </span>
-                <button type="button" onclick="copyToClipboard('{{ ref_no }}', this)" 
-                        class="h-11 px-4 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold rounded-xl text-base shadow-sm flex items-center gap-2 transition-all">
-                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3"/></svg>
+                <button type="button" onclick="copyToClipboard('{{ ref_no }}', this)"
+                    class="h-11 px-4 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold rounded-xl text-base shadow-sm flex items-center gap-2 transition-all">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3" />
+                    </svg>
                     <span>{% trans "Copy" %}</span>
                 </button>
             </div>
@@ -34,12 +38,13 @@
         </div>
 
         <div class="flex items-center gap-3">
-            <a href="{{ new_entry_url }}" 
-               class="h-12 px-6 bg-white hover:bg-emerald-100 text-emerald-900 font-bold text-lg rounded-xl border-2 border-emerald-500 shadow-sm flex items-center gap-2 transition-all">
-                <svg class="w-5 h-5 text-emerald-700" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m8-8H4"/></svg>
+            <a href="{{ new_entry_url }}"
+                class="h-12 px-6 bg-white hover:bg-emerald-100 text-emerald-900 font-bold text-lg rounded-xl border-2 border-emerald-500 shadow-sm flex items-center gap-2 transition-all">
+                <svg class="w-5 h-5 text-emerald-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m8-8H4" />
+                </svg>
                 <span>{% trans "New Entry" %}</span>
             </a>
         </div>
     </div>
 </div>
-

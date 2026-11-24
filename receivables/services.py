@@ -199,7 +199,7 @@ def update_in_transit_status(
 
     log_change(
         action_type='STATUS_UPDATED',
-        truck_challan_key=consignment.truck_challan.truck_challan_key if consignment.truck_challan else '',
+        truck_challan_key=consignment.truck_challan_id or '',
         builty_no=consignment.builty_no,
         field_name='goods_condition',
         old_value=old_condition,
@@ -455,6 +455,7 @@ def process_delivery_and_payment(
     amount_collected: Decimal = Decimal('0.00'),
     payment_mode: str = PaymentMode.CASH,
     user=None,
+    ip_address: Optional[str] = None,
 ) -> Tuple[Consignment, Optional[PaymentReceipt]]:
     """
     Form 2: Delivery and Payment.
@@ -465,6 +466,7 @@ def process_delivery_and_payment(
     except Consignment.DoesNotExist:
         raise ValidationError(_("Consignment with Reference No. '%(no)s' not found.") % {'no': form_no})
 
+    old_delivery_status = consignment.delivery_status
     opening_balance = calculate_opening_balance(consignment)
     amount_collected = Decimal(str(amount_collected or '0.00'))
 
@@ -521,6 +523,20 @@ def process_delivery_and_payment(
         consignment.status = ConsignmentStatus.CLOSED
 
     consignment.save()
+
+    log_change(
+        action_type='DELIVERY_PAYMENT',
+        truck_challan_key=consignment.truck_challan_id or '',
+        builty_no=consignment.builty_no,
+        field_name='delivery_and_payment',
+        old_value=f"Delivery: {old_delivery_status}, Balance: Rs. {opening_balance:,.2f}",
+        new_value=(
+            f"Delivery: {consignment.delivery_status}, Collected: Rs. {amount_collected:,.2f} ({payment_mode}), "
+            f"Closing Balance: Rs. {consignment.receivable_amount:,.2f}, Status: {consignment.status}"
+        ),
+        user=user,
+        ip_address=ip_address,
+    )
     return consignment, receipt
 
 
@@ -531,6 +547,7 @@ def process_agent_recovery(
     amount_collected: Decimal,
     payment_mode: str = PaymentMode.CASH,
     user=None,
+    ip_address: Optional[str] = None,
 ) -> Tuple[Consignment, PaymentReceipt]:
     """
     Form 3: Agent Recovery.
@@ -588,6 +605,20 @@ def process_agent_recovery(
         consignment.status = ConsignmentStatus.CLOSED
 
     consignment.save()
+
+    log_change(
+        action_type='AGENT_RECOVERY',
+        truck_challan_key=consignment.truck_challan_id or '',
+        builty_no=consignment.builty_no,
+        field_name='payment_receipt',
+        old_value=f"Opening Balance: Rs. {opening_balance:,.2f}",
+        new_value=(
+            f"Agent: {agent.agent_name}, Collected: Rs. {amount_collected:,.2f} ({payment_mode}), "
+            f"Closing Balance: Rs. {consignment.receivable_amount:,.2f}, Status: {consignment.status}"
+        ),
+        user=user,
+        ip_address=ip_address,
+    )
     return consignment, receipt
 
 
@@ -597,6 +628,7 @@ def process_loss_damage_settlement(
     compensation_paid: Decimal,
     remarks: Optional[str] = '',
     user=None,
+    ip_address: Optional[str] = None,
 ) -> LossDamageSettlement:
     """
     Form 4: Loss and Damage Settlement.
@@ -623,6 +655,7 @@ def process_loss_damage_settlement(
     if compensation_paid < Decimal('0.00'):
         raise ValidationError(_("Compensation Paid cannot be negative."))
 
+    old_status = consignment.status
     audit_user = user if (user and getattr(user, 'is_authenticated', False)) else None
     settlement = LossDamageSettlement.objects.create(
         consignment=consignment,
@@ -636,5 +669,19 @@ def process_loss_damage_settlement(
     # Rule 3 & 10: Builty is Closed when its settlement is saved
     consignment.status = ConsignmentStatus.CLOSED
     consignment.save()
+
+    log_change(
+        action_type='SETTLEMENT_RECORDED',
+        truck_challan_key=consignment.truck_challan_id or '',
+        builty_no=consignment.builty_no,
+        field_name='settlement',
+        old_value=f"Condition: {consignment.goods_condition}, Status: {old_status}",
+        new_value=(
+            f"Compensation Paid: Rs. {compensation_paid:,.2f}, Status: Closed"
+            + (f", Remarks: {remarks}" if remarks else "")
+        ),
+        user=user,
+        ip_address=ip_address,
+    )
 
     return settlement

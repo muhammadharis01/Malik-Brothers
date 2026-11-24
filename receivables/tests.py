@@ -669,3 +669,411 @@ class InboundTruckChallanAndAuditLogTest(TestCase):
         self.assertContains(log_resp, 'Damaged')
 
 
+class Forms234ConsistencyAndFlowTests(TestCase):
+    """
+    Tests Form 2 (Delivery & Payment), Form 3 (Agent Recovery), and Form 4 (Loss & Damage Settlement)
+    direct access, sidebar navigation, HTMX lookups, POST workflows, and audit logging.
+    """
+
+    def setUp(self):
+        self.customer = CustomerMaster.objects.create(
+            customer_name='Multan Textile Mills',
+            contact_number='0300-9991111',
+            address='Industrial Estate',
+            area_region='Industrial Estate',
+        )
+        self.agent = AgentMaster.objects.create(
+            agent_name='Kamran Agent',
+            contact_number='0301-2223333',
+            area_region='Industrial Estate',
+        )
+        self.ok_consignment, _ = services.create_consignment(
+            builty_no='KHI-F234-OK',
+            customer_type=CustomerCategory.REGULAR,
+            customer_id=self.customer.customer_id,
+            delivery_mode=DeliveryMode.DELIVER_AT_ADDRESS,
+            total_amount=Decimal('10000.00'),
+            advance_received=Decimal('1000.00'),
+            loading_charges=Decimal('500.00'),
+            godam_charges=Decimal('250.00'),
+            goods_condition=GoodsCondition.RECEIVED_OK,
+        )
+        self.lost_consignment, _ = services.create_consignment(
+            builty_no='KHI-F234-LOST',
+            customer_type=CustomerCategory.WALK_IN,
+            customer_name='Lost Claim Customer',
+            contact_number='0302-4445555',
+            delivery_mode=DeliveryMode.COLLECT_FROM_OFFICE,
+            total_amount=Decimal('8000.00'),
+            advance_received=Decimal('2000.00'),
+            goods_condition=GoodsCondition.LOST,
+        )
+
+    def test_sidebar_links_and_direct_access_without_login(self):
+        for url_name in [
+            'receivables:form2_delivery',
+            'receivables:form3_recovery',
+            'receivables:form4_settlement',
+            'receivables:audit_logs_report',
+            'masters:customer_master',
+        ]:
+            resp = self.client.get(reverse(url_name))
+            self.assertEqual(resp.status_code, 200)
+            self.assertContains(resp, reverse('receivables:form2_delivery'))
+            self.assertContains(resp, reverse('receivables:form3_recovery'))
+            self.assertContains(resp, reverse('receivables:form4_settlement'))
+
+    def test_form2_lookup_and_post_creates_audit_log(self):
+        # Case-insensitive HTMX lookup
+        lookup = self.client.get(
+            reverse('receivables:htmx_form2_lookup'),
+            {'form_no': self.ok_consignment.form_no.lower()},
+        )
+        self.assertEqual(lookup.status_code, 200)
+        self.assertContains(lookup, 'KHI-F234-OK')
+        self.assertContains(lookup, '9,750.00')
+
+        # POST delivery + partial payment
+        resp = self.client.post(
+            reverse('receivables:form2_delivery'),
+            {
+                'form_no': self.ok_consignment.form_no,
+                'delivery_status': DeliveryStatus.DELIVERED,
+                'amount_collected': '1750.00',
+                'payment_mode': PaymentMode.CASH,
+            },
+        )
+        self.assertEqual(resp.status_code, 200)
+        self.assertContains(resp, '8,000.00')
+        self.ok_consignment.refresh_from_db()
+        self.assertEqual(self.ok_consignment.receivable_amount, Decimal('8000.00'))
+        self.assertEqual(self.ok_consignment.delivery_status, DeliveryStatus.DELIVERED)
+        self.assertTrue(
+            ChangeLog.objects.filter(
+                builty_no='KHI-F234-OK',
+                action_type='DELIVERY_PAYMENT',
+            ).exists()
+        )
+
+    def test_form3_lookup_and_post_closes_builty_and_logs(self):
+        # First mark delivered with 1750 collected so 8000 remains
+        services.process_delivery_and_payment(
+            self.ok_consignment.form_no,
+            DeliveryStatus.DELIVERED,
+            Decimal('1750.00'),
+        )
+        lookup = self.client.get(
+            reverse('receivables:htmx_form3_lookup'),
+            {'form_no': self.ok_consignment.form_no},
+        )
+        self.assertEqual(lookup.status_code, 200)
+        self.assertContains(lookup, 'Kamran Agent')
+        self.assertContains(lookup, '8,000.00')
+
+        resp = self.client.post(
+            reverse('receivables:form3_recovery'),
+            {
+                'form_no': self.ok_consignment.form_no,
+                'agent_id': str(self.agent.agent_id),
+                'amount_collected': '8000.00',
+                'payment_mode': PaymentMode.BANK,
+            },
+        )
+        self.assertEqual(resp.status_code, 200)
+        self.ok_consignment.refresh_from_db()
+        self.assertEqual(self.ok_consignment.receivable_amount, Decimal('0.00'))
+        self.assertEqual(self.ok_consignment.status, ConsignmentStatus.CLOSED)
+        self.assertTrue(
+            ChangeLog.objects.filter(
+                builty_no='KHI-F234-OK',
+                action_type='AGENT_RECOVERY',
+            ).exists()
+        )
+
+    def test_form4_lookup_and_post_settles_and_logs(self):
+        # OK builty should be rejected in lookup
+        bad_lookup = self.client.get(
+            reverse('receivables:htmx_form4_lookup'),
+            {'form_no': self.ok_consignment.form_no},
+        )
+        self.assertEqual(bad_lookup.status_code, 200)
+        self.assertContains(bad_lookup, 'Not Eligible for Settlement')
+
+        # Lost builty should be accepted
+        good_lookup = self.client.get(
+            reverse('receivables:htmx_form4_lookup'),
+            {'form_no': self.lost_consignment.form_no},
+        )
+        self.assertEqual(good_lookup.status_code, 200)
+        self.assertContains(good_lookup, 'KHI-F234-LOST')
+
+        resp = self.client.post(
+            reverse('receivables:form4_settlement'),
+            {
+                'form_no': self.lost_consignment.form_no,
+                'compensation_paid': '3500.00',
+                'remarks': 'Approved by Manager',
+            },
+        )
+        self.assertEqual(resp.status_code, 200)
+        self.assertContains(resp, '3,500.00')
+        self.lost_consignment.refresh_from_db()
+        self.assertEqual(self.lost_consignment.status, ConsignmentStatus.CLOSED)
+        self.assertTrue(
+            ChangeLog.objects.filter(
+                builty_no='KHI-F234-LOST',
+                action_type='SETTLEMENT_RECORDED',
+            ).exists()
+        )
+
+
+class AllScenariosEndToEndTests(TestCase):
+    """
+    Comprehensive end-to-end verification of all scenarios across BSD, Smart Business Solution,
+    and Required Changes PDFs.
+    """
+
+    def setUp(self):
+        self.customer = CustomerMaster.objects.create(
+            customer_name='Al-Madina Fabrics',
+            contact_number='0300-1231234',
+            address='Hussain Agahi',
+            area_region='Hussain Agahi',
+            credit_limit=Decimal('50000.00'),
+        )
+        self.agent = AgentMaster.objects.create(
+            agent_name='Sajid Recovery',
+            contact_number='0305-5556666',
+            area_region='Hussain Agahi',
+        )
+
+    def test_descriptive_endpoints_resolve_and_load(self):
+        """All descriptive form endpoints return 200."""
+        for path in [
+            '/',
+            '/consignment-receiving/',
+            '/delivery-payment/',
+            '/agent-recovery/',
+            '/loss-damage-settlement/',
+            '/customers/',
+            '/audit-logs/',
+        ]:
+            resp = self.client.get(path)
+            self.assertEqual(resp.status_code, 200, f"Failed on {path}")
+
+    def test_type_a_full_advance_delivery_closes_immediately(self):
+        """BSD 3.1 Type A: Full advance paid at Karachi -> balance 0 -> Form 2 marks Delivered -> Closed."""
+        c, _ = services.create_consignment(
+            builty_no='KHI-FULL-ADV',
+            customer_type=CustomerCategory.REGULAR,
+            customer_id=self.customer.customer_id,
+            delivery_mode=DeliveryMode.COLLECT_FROM_OFFICE,
+            total_amount=Decimal('5000.00'),
+            advance_received=Decimal('5000.00'),
+            goods_condition=GoodsCondition.RECEIVED_OK,
+        )
+        self.assertEqual(c.receivable_amount, Decimal('0.00'))
+        self.assertEqual(c.status, ConsignmentStatus.OPEN)
+
+        resp = self.client.post('/delivery-payment/', {
+            'form_no': c.form_no,
+            'delivery_status': DeliveryStatus.DELIVERED,
+            'amount_collected': '0',
+            'payment_mode': PaymentMode.CASH,
+        })
+        self.assertEqual(resp.status_code, 200)
+        c.refresh_from_db()
+        self.assertEqual(c.delivery_status, DeliveryStatus.DELIVERED)
+        self.assertEqual(c.receivable_amount, Decimal('0.00'))
+        self.assertEqual(c.status, ConsignmentStatus.CLOSED)
+        self.assertEqual(c.receipts.count(), 0)
+
+    def test_form2_default_select_option_and_multiple_counter_payments(self):
+        """Form 2 defaults to '-- Select Option --' and supports repeat payments until balance reaches 0."""
+        c, _ = services.create_consignment(
+            builty_no='KHI-MULTI-PAY',
+            customer_type=CustomerCategory.WALK_IN,
+            customer_name='Walkin Buyer',
+            contact_number='0312-0001111',
+            delivery_mode=DeliveryMode.COLLECT_FROM_OFFICE,
+            total_amount=Decimal('6000.00'),
+            advance_received=Decimal('0.00'),
+            goods_condition=GoodsCondition.RECEIVED_OK,
+        )
+
+        # Verify default '-- Select Option --' in Form 2 lookup
+        lookup = self.client.get('/delivery-payment/lookup/', {'form_no': c.form_no})
+        self.assertEqual(lookup.status_code, 200)
+        self.assertContains(lookup, 'Select Option')
+
+        # 1st visit: Delivered on credit (0 collected)
+        self.client.post('/delivery-payment/', {
+            'form_no': c.form_no,
+            'delivery_status': DeliveryStatus.DELIVERED,
+            'amount_collected': '0',
+            'payment_mode': PaymentMode.CASH,
+        })
+        c.refresh_from_db()
+        self.assertEqual(c.delivery_status, DeliveryStatus.DELIVERED)
+        self.assertEqual(c.status, ConsignmentStatus.OPEN)
+        self.assertEqual(c.receivable_amount, Decimal('6000.00'))
+
+        # 2nd visit: Partial counter payment (2,500 Cash)
+        self.client.post('/delivery-payment/', {
+            'form_no': c.form_no,
+            'delivery_status': DeliveryStatus.DELIVERED,
+            'amount_collected': '2500.00',
+            'payment_mode': PaymentMode.CASH,
+        })
+        c.refresh_from_db()
+        self.assertEqual(c.receivable_amount, Decimal('3500.00'))
+        self.assertEqual(c.status, ConsignmentStatus.OPEN)
+
+        # 3rd visit: Final counter payment (3,500 Bank) -> Closes builty
+        self.client.post('/delivery-payment/', {
+            'form_no': c.form_no,
+            'delivery_status': DeliveryStatus.DELIVERED,
+            'amount_collected': '3500.00',
+            'payment_mode': PaymentMode.BANK,
+        })
+        c.refresh_from_db()
+        self.assertEqual(c.receivable_amount, Decimal('0.00'))
+        self.assertEqual(c.status, ConsignmentStatus.CLOSED)
+        self.assertEqual(c.receipts.count(), 2)
+
+    def test_form3_validation_edges_and_htmx_closing_calc(self):
+        """Form 3 rejects 0, negative, over-balance, and missing agent; HTMX closing calc works."""
+        c, _ = services.create_consignment(
+            builty_no='KHI-F3-EDGE',
+            customer_type=CustomerCategory.REGULAR,
+            customer_id=self.customer.customer_id,
+            delivery_mode=DeliveryMode.DELIVER_AT_ADDRESS,
+            total_amount=Decimal('4000.00'),
+            advance_received=Decimal('1000.00'),
+            goods_condition=GoodsCondition.RECEIVED_OK,
+        )
+
+        # Missing agent
+        r1 = self.client.post('/agent-recovery/', {
+            'form_no': c.form_no,
+            'agent_id': '',
+            'amount_collected': '500',
+            'payment_mode': PaymentMode.CASH,
+        })
+        self.assertContains(r1, 'select a collection agent')
+
+        # Zero amount
+        r2 = self.client.post('/agent-recovery/', {
+            'form_no': c.form_no,
+            'agent_id': str(self.agent.agent_id),
+            'amount_collected': '0',
+            'payment_mode': PaymentMode.CASH,
+        })
+        self.assertContains(r2, 'greater than zero')
+
+        # Over-balance amount (opening is 3,000)
+        r3 = self.client.post('/agent-recovery/', {
+            'form_no': c.form_no,
+            'agent_id': str(self.agent.agent_id),
+            'amount_collected': '3500',
+            'payment_mode': PaymentMode.CASH,
+        })
+        self.assertContains(r3, 'cannot exceed')
+
+        # HTMX closing balance preview (valid & over-collection)
+        calc_ok = self.client.get('/agent-recovery/calc-closing/', {
+            'opening_balance': '3000',
+            'amount_collected': '1200',
+        })
+        self.assertContains(calc_ok, '1,800.00')
+
+        calc_err = self.client.get('/delivery-payment/calc-closing/', {
+            'opening_balance': '3000',
+            'amount_collected': '4000',
+        })
+        self.assertContains(calc_err, 'cannot exceed')
+
+    def test_form4_in_transit_rejected_and_damaged_settled_once(self):
+        """Form 4 rejects In Transit builties, settles Damaged builties, and blocks a second settlement."""
+        in_transit, _ = services.create_consignment(
+            builty_no='KHI-F4-TRANSIT',
+            customer_type=CustomerCategory.WALK_IN,
+            customer_name='Transit Client',
+            contact_number='0300-7770000',
+            delivery_mode=DeliveryMode.COLLECT_FROM_OFFICE,
+            total_amount=Decimal('3000.00'),
+            advance_received=Decimal('0.00'),
+            goods_condition=GoodsCondition.IN_TRANSIT,
+        )
+        lookup_transit = self.client.get('/loss-damage-settlement/lookup/', {'form_no': in_transit.form_no})
+        self.assertContains(lookup_transit, 'Not Eligible for Settlement')
+
+        # Transition In Transit -> Damaged via Section 8 flow, then settle in Form 4
+        services.update_in_transit_status(in_transit.form_no, GoodsCondition.DAMAGED)
+        lookup_damaged = self.client.get('/loss-damage-settlement/lookup/', {'form_no': in_transit.form_no})
+        self.assertContains(lookup_damaged, 'KHI-F4-TRANSIT')
+
+        # Negative compensation refused
+        r_neg = self.client.post('/loss-damage-settlement/', {
+            'form_no': in_transit.form_no,
+            'compensation_paid': '-100',
+            'remarks': 'Invalid negative',
+        })
+        self.assertContains(r_neg, 'cannot be negative')
+
+        # Valid settlement succeeds
+        r_ok = self.client.post('/loss-damage-settlement/', {
+            'form_no': in_transit.form_no,
+            'compensation_paid': '1200.00',
+            'remarks': 'Damaged box approved by manager',
+        })
+        self.assertEqual(r_ok.status_code, 200)
+        self.assertContains(r_ok, '1,200.00')
+
+        # Second settlement attempt refused via UI
+        r_dup = self.client.post('/loss-damage-settlement/', {
+            'form_no': in_transit.form_no,
+            'compensation_paid': '500.00',
+            'remarks': 'Duplicate attempt',
+        })
+        self.assertContains(r_dup, 'already been saved')
+
+    def test_search_grids_filter_correctly_on_forms_2_3_4(self):
+        """Bottom search grids filter by query and dropdowns on Forms 2, 3, and 4."""
+        services.create_consignment(
+            builty_no='KHI-GRID-OK',
+            customer_type=CustomerCategory.REGULAR,
+            customer_id=self.customer.customer_id,
+            delivery_mode=DeliveryMode.DELIVER_AT_ADDRESS,
+            total_amount=Decimal('5000.00'),
+            advance_received=Decimal('500.00'),
+            goods_condition=GoodsCondition.RECEIVED_OK,
+        )
+        services.create_consignment(
+            builty_no='KHI-GRID-DMG',
+            customer_type=CustomerCategory.WALK_IN,
+            customer_name='Damaged Grid Party',
+            contact_number='0311-9990000',
+            delivery_mode=DeliveryMode.COLLECT_FROM_OFFICE,
+            total_amount=Decimal('4000.00'),
+            advance_received=Decimal('0.00'),
+            goods_condition=GoodsCondition.DAMAGED,
+        )
+
+        # Form 2 search
+        r2 = self.client.get('/delivery-payment/', {'q': 'KHI-GRID-OK', 'delivery_status': 'Not Delivered'})
+        self.assertContains(r2, 'KHI-GRID-OK')
+        self.assertNotContains(r2, 'KHI-GRID-DMG')
+
+        # Form 3 search by area
+        r3 = self.client.get('/agent-recovery/', {'q': 'Hussain Agahi'})
+        self.assertContains(r3, 'KHI-GRID-OK')
+
+        # Form 4 filter by condition=Damaged & settlement_status=Pending
+        r4 = self.client.get('/loss-damage-settlement/', {'condition': 'Damaged', 'settlement_status': 'Pending'})
+        self.assertContains(r4, 'KHI-GRID-DMG')
+        self.assertNotContains(r4, 'KHI-GRID-OK')
+
+
+
+

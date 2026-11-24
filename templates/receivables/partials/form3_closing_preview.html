@@ -1,28 +1,24 @@
 {% load i18n humanize %}
 
-<div id="form3-closing-preview" class="space-y-2">
-    <label class="block text-base font-semibold text-slate-700">
-        {% trans "Closing Balance (Live Preview)" %}
-        <span class="text-xs text-slate-500 font-normal">({% trans "Opening Balance minus Agent Recovery" %})</span>
+<div id="form3-closing-preview">
+    <label class="text-sm font-semibold text-slate-700">
+        {% trans "Closing Balance (Auto-Calculated)" %}
     </label>
     <div class="relative">
         <input type="text" readonly
                value="Rs. {{ closing_balance|floatformat:2|intcomma }}"
-               class="w-full h-12 px-4 text-xl font-bold bg-slate-100 text-slate-900 border border-slate-300 rounded-xl cursor-not-allowed select-none shadow-inner font-mono">
-        <div class="absolute inset-y-0 right-0 pr-4 flex items-center pointer-events-none text-slate-400">
-            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg>
+               class="w-full h-12 px-4 text-lg font-bold bg-slate-100 text-slate-900 border border-slate-300 rounded-xl cursor-not-allowed select-none shadow-inner font-mono">
+        <div class="absolute inset-y-0 right-0 pr-3.5 flex items-center pointer-events-none text-slate-400">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/>
+            </svg>
         </div>
     </div>
     {% if error %}
-    <p class="text-sm font-semibold text-rose-600 flex items-center gap-1.5 mt-1">
-        <svg class="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-        <span>{{ error }}</span>
-    </p>
-    {% elif closing_balance == 0 and consignment %}
-    <p class="text-sm font-semibold text-emerald-600 flex items-center gap-1.5 mt-1">
-        <svg class="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
-        <span>{% trans "This recovery completely settles the remaining balance and closes the builty." %}</span>
+    <p class="text-xs font-semibold text-rose-600 mt-1.5">{{ error }}</p>
+    {% elif closing_balance == 0 and has_loaded %}
+    <p class="text-xs font-semibold text-emerald-700 mt-1.5">
+        {% trans "This recovery settles the remaining balance in full (builty closes if already delivered)." %}
     </p>
     {% endif %}
 </div>
-

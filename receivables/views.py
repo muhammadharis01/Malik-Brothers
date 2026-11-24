@@ -523,18 +523,53 @@ def htmx_form1_balance_calc(request):
 # FORM 2: DELIVERY AND PAYMENT
 # ==============================================================================
 
-@login_required
-@role_required(['Admin', 'Delivery Clerk'])
+def _build_form2_lookup_context(form_no: str) -> dict:
+    consignment = None
+    opening_balance = Decimal('0.00')
+    error = None
+    credit_warning = None
+    receipts = []
+
+    if form_no:
+        consignment = (
+            Consignment.objects.select_related('truck_challan', 'customer')
+            .filter(form_no__iexact=form_no)
+            .first()
+        )
+        if consignment:
+            opening_balance = services.calculate_opening_balance(consignment)
+            receipts = list(
+                consignment.receipts.select_related('agent').order_by('-receipt_date', '-receipt_id')
+            )
+            if consignment.customer:
+                has_warn, warn_msg = services.check_customer_credit(consignment.customer, Decimal('0.00'))
+                if has_warn:
+                    credit_warning = warn_msg
+        else:
+            error = _("No consignment found with Reference No. '%(no)s'") % {'no': form_no}
+
+    return {
+        'consignment': consignment,
+        'opening_balance': opening_balance,
+        'receipts': receipts,
+        'credit_warning': credit_warning,
+        'error': error,
+        'delivery_statuses': DeliveryStatus.choices,
+        'payment_modes': PaymentMode.choices,
+    }
+
+
+@role_required(['Admin', 'Delivery Clerk'], require_login=False)
 def form2_delivery(request):
     """
     Form 2: Delivery and Payment.
     """
     success_data = None
     errors = {}
-    form_no_input = request.GET.get('form_no', '').strip()
+    form_no_input = request.GET.get('form_no', '').strip().upper()
 
     if request.method == 'POST':
-        form_no = request.POST.get('form_no', '').strip()
+        form_no = request.POST.get('form_no', '').strip().upper()
         delivery_status = request.POST.get('delivery_status')
         amount_collected = request.POST.get('amount_collected', '0').strip()
         payment_mode = request.POST.get('payment_mode', PaymentMode.CASH)
@@ -545,14 +580,30 @@ def form2_delivery(request):
                 delivery_status=delivery_status,
                 amount_collected=Decimal(amount_collected or '0'),
                 payment_mode=payment_mode,
-                user=request.user,
+                user=request.user if request.user.is_authenticated else None,
+                ip_address=request.META.get('REMOTE_ADDR'),
             )
+            extra_info = _(
+                "Delivery Status: %(delivery)s | Closing Balance: Rs. %(balance)s | Builty Status: %(status)s"
+            ) % {
+                'delivery': consignment.delivery_status,
+                'balance': f"{consignment.receivable_amount:,.2f}",
+                'status': consignment.status,
+            }
             success_data = {
                 'consignment': consignment,
                 'receipt': receipt,
                 'closing_balance': consignment.receivable_amount,
+                'extra_info': extra_info,
             }
-            messages.success(request, _("Delivery status and payment updated successfully for '%(form_no)s'!") % {'form_no': form_no})
+            messages.success(
+                request,
+                _("Delivery & payment updated for '%(form_no)s' — %(extra)s") % {
+                    'form_no': consignment.form_no,
+                    'extra': extra_info,
+                }
+            )
+            form_no_input = ''
         except ValidationError as e:
             errors['non_field'] = e.message if hasattr(e, 'message') else str(e)
             form_no_input = form_no
@@ -560,46 +611,74 @@ def form2_delivery(request):
             errors['non_field'] = str(e)
             form_no_input = form_no
 
+    # Bottom Search & Data Grid (Open & Recent Builties for Delivery/Payment)
+    query = request.GET.get('q', '').strip()
+    delivery_filter = request.GET.get('delivery_status', '').strip()
+    status_filter = request.GET.get('status', '').strip()
+
+    builties_qs = Consignment.objects.select_related('truck_challan', 'customer').order_by('-received_date', '-form_no')
+    if query:
+        builties_qs = builties_qs.filter(
+            Q(form_no__icontains=query) |
+            Q(builty_no__icontains=query) |
+            Q(customer_name__icontains=query) |
+            Q(contact_number__icontains=query) |
+            Q(truck_challan__truck_challan_key__icontains=query)
+        )
+    if delivery_filter:
+        builties_qs = builties_qs.filter(delivery_status=delivery_filter)
+    if status_filter:
+        builties_qs = builties_qs.filter(status=status_filter)
+
+    paginator = Paginator(builties_qs, 20)
+    page_obj = paginator.get_page(request.GET.get('page'))
+
+    pending_delivery_count = Consignment.objects.filter(
+        status=ConsignmentStatus.OPEN,
+        delivery_status=DeliveryStatus.NOT_DELIVERED,
+    ).count()
+    open_balance_count = Consignment.objects.filter(
+        status=ConsignmentStatus.OPEN,
+        receivable_amount__gt=Decimal('0.00'),
+    ).count()
+
+    lookup_ctx = _build_form2_lookup_context(form_no_input) if form_no_input else {
+        'consignment': None,
+        'opening_balance': Decimal('0.00'),
+        'receipts': [],
+        'credit_warning': None,
+        'error': None,
+    }
+
     context = {
         'form_no_input': form_no_input,
         'success_data': success_data,
         'errors': errors,
         'delivery_statuses': DeliveryStatus.choices,
         'payment_modes': PaymentMode.choices,
+        'status_choices': ConsignmentStatus.choices,
+        'page_obj': page_obj,
+        'query': query,
+        'delivery_filter': delivery_filter,
+        'status_filter': status_filter,
+        'pending_delivery_count': pending_delivery_count,
+        'open_balance_count': open_balance_count,
+        **lookup_ctx,
     }
     return render(request, 'receivables/form2_delivery.html', context)
 
 
-@login_required
-@role_required(['Admin', 'Delivery Clerk'])
+@role_required(['Admin', 'Delivery Clerk'], require_login=False)
 def htmx_form2_lookup(request):
     """
     HTMX partial: fetches consignment details when user enters Reference No.
     """
-    form_no = request.GET.get('form_no', '').strip()
-    consignment = None
-    opening_balance = Decimal('0.00')
-    error = None
-
-    if form_no:
-        try:
-            consignment = Consignment.objects.get(form_no=form_no)
-            opening_balance = services.calculate_opening_balance(consignment)
-        except Consignment.DoesNotExist:
-            error = _("No consignment found with Reference No. '%(no)s'") % {'no': form_no}
-
-    context = {
-        'consignment': consignment,
-        'opening_balance': opening_balance,
-        'error': error,
-        'delivery_statuses': DeliveryStatus.choices,
-        'payment_modes': PaymentMode.choices,
-    }
+    form_no = request.GET.get('form_no', '').strip().upper()
+    context = _build_form2_lookup_context(form_no)
     return render(request, 'receivables/partials/form2_builty_details.html', context)
 
 
-@login_required
-@role_required(['Admin', 'Delivery Clerk'])
+@role_required(['Admin', 'Delivery Clerk'], require_login=False)
 def htmx_form2_calc_closing(request):
     """
     HTMX partial: live closing balance preview as user types amount collected.
@@ -616,7 +695,9 @@ def htmx_form2_calc_closing(request):
 
     closing = opening - collected
     error = None
-    if collected > opening:
+    if collected < Decimal('0.00'):
+        error = _("Amount collected cannot be negative.")
+    elif collected > opening:
         error = _("Amount collected cannot exceed Opening Balance (Rs. %(opening)s).") % {'opening': f"{opening:,.2f}"}
 
     context = {
@@ -624,6 +705,7 @@ def htmx_form2_calc_closing(request):
         'amount_collected': collected,
         'closing_balance': max(Decimal('0.00'), closing),
         'error': error,
+        'has_loaded': True,
     }
     return render(request, 'receivables/partials/form2_closing_preview.html', context)
 
@@ -632,8 +714,37 @@ def htmx_form2_calc_closing(request):
 # FORM 3: AGENT RECOVERY
 # ==============================================================================
 
-@login_required
-@role_required(['Admin', 'Accounts Clerk'])
+def _build_form3_lookup_context(form_no: str, agents) -> dict:
+    consignment = None
+    opening_balance = Decimal('0.00')
+    error = None
+    receipts = []
+
+    if form_no:
+        consignment = (
+            Consignment.objects.select_related('truck_challan', 'customer')
+            .filter(form_no__iexact=form_no)
+            .first()
+        )
+        if consignment:
+            opening_balance = services.calculate_opening_balance(consignment)
+            receipts = list(
+                consignment.receipts.select_related('agent').order_by('-receipt_date', '-receipt_id')
+            )
+        else:
+            error = _("No consignment found with Reference No. '%(no)s'") % {'no': form_no}
+
+    return {
+        'consignment': consignment,
+        'opening_balance': opening_balance,
+        'receipts': receipts,
+        'agents': agents,
+        'error': error,
+        'payment_modes': PaymentMode.choices,
+    }
+
+
+@role_required(['Admin', 'Accounts Clerk'], require_login=False)
 def form3_recovery(request):
     """
     Form 3: Agent Recovery.
@@ -641,30 +752,47 @@ def form3_recovery(request):
     agents = AgentMaster.objects.filter(status=AgentStatus.ACTIVE).order_by('agent_name')
     success_data = None
     errors = {}
-    form_no_input = request.GET.get('form_no', '').strip()
+    form_no_input = request.GET.get('form_no', '').strip().upper()
 
     if request.method == 'POST':
-        form_no = request.POST.get('form_no', '').strip()
+        form_no = request.POST.get('form_no', '').strip().upper()
         agent_id = request.POST.get('agent_id')
         amount_collected = request.POST.get('amount_collected', '0').strip()
         payment_mode = request.POST.get('payment_mode', PaymentMode.CASH)
 
         try:
             if not agent_id:
-                raise ValidationError(_("Please select an agent."))
+                raise ValidationError(_("Please select a collection agent."))
             consignment, receipt = services.process_agent_recovery(
                 form_no=form_no,
                 agent_id=int(agent_id),
                 amount_collected=Decimal(amount_collected or '0'),
                 payment_mode=payment_mode,
-                user=request.user,
+                user=request.user if request.user.is_authenticated else None,
+                ip_address=request.META.get('REMOTE_ADDR'),
             )
+            extra_info = _(
+                "Agent: %(agent)s | Collected: Rs. %(collected)s | Closing Balance: Rs. %(balance)s | Status: %(status)s"
+            ) % {
+                'agent': receipt.agent.agent_name if receipt.agent else '-',
+                'collected': f"{receipt.amount_received:,.2f}",
+                'balance': f"{consignment.receivable_amount:,.2f}",
+                'status': consignment.status,
+            }
             success_data = {
                 'consignment': consignment,
                 'receipt': receipt,
                 'closing_balance': consignment.receivable_amount,
+                'extra_info': extra_info,
             }
-            messages.success(request, _("Agent recovery recorded successfully for '%(form_no)s'!") % {'form_no': form_no})
+            messages.success(
+                request,
+                _("Agent recovery recorded for '%(form_no)s' — %(extra)s") % {
+                    'form_no': consignment.form_no,
+                    'extra': extra_info,
+                }
+            )
+            form_no_input = ''
         except ValidationError as e:
             errors['non_field'] = e.message if hasattr(e, 'message') else str(e)
             form_no_input = form_no
@@ -672,47 +800,78 @@ def form3_recovery(request):
             errors['non_field'] = str(e)
             form_no_input = form_no
 
-    context = {
+    # Bottom Search Grid: Open Builties with Balance Receivable > 0
+    query = request.GET.get('q', '').strip()
+    delivery_filter = request.GET.get('delivery_status', '').strip()
+
+    recoverable_qs = (
+        Consignment.objects.select_related('truck_challan', 'customer')
+        .filter(status=ConsignmentStatus.OPEN, receivable_amount__gt=Decimal('0.00'))
+        .order_by('received_date', 'form_no')
+    )
+    if query:
+        recoverable_qs = recoverable_qs.filter(
+            Q(form_no__icontains=query) |
+            Q(builty_no__icontains=query) |
+            Q(customer_name__icontains=query) |
+            Q(contact_number__icontains=query) |
+            Q(customer__area_region__icontains=query)
+        )
+    if delivery_filter:
+        recoverable_qs = recoverable_qs.filter(delivery_status=delivery_filter)
+
+    total_recoverable_count = recoverable_qs.count()
+    total_recoverable_amount = (
+        recoverable_qs.aggregate(Sum('receivable_amount'))['receivable_amount__sum']
+        or Decimal('0.00')
+    )
+
+    paginator = Paginator(recoverable_qs, 20)
+    page_obj = paginator.get_page(request.GET.get('page'))
+
+    recent_recoveries = (
+        PaymentReceipt.objects.select_related('consignment', 'agent')
+        .filter(received_via=ReceivedVia.AGENT)
+        .order_by('-receipt_date', '-receipt_id')[:15]
+    )
+
+    lookup_ctx = _build_form3_lookup_context(form_no_input, agents) if form_no_input else {
+        'consignment': None,
+        'opening_balance': Decimal('0.00'),
+        'receipts': [],
         'agents': agents,
+        'error': None,
+        'payment_modes': PaymentMode.choices,
+    }
+
+    context = {
         'form_no_input': form_no_input,
         'success_data': success_data,
         'errors': errors,
-        'payment_modes': PaymentMode.choices,
+        'delivery_statuses': DeliveryStatus.choices,
+        'page_obj': page_obj,
+        'recent_recoveries': recent_recoveries,
+        'query': query,
+        'delivery_filter': delivery_filter,
+        'total_recoverable_count': total_recoverable_count,
+        'total_recoverable_amount': total_recoverable_amount,
+        **lookup_ctx,
     }
     return render(request, 'receivables/form3_recovery.html', context)
 
 
-@login_required
-@role_required(['Admin', 'Accounts Clerk'])
+@role_required(['Admin', 'Accounts Clerk'], require_login=False)
 def htmx_form3_lookup(request):
     """
     HTMX partial: fetches consignment details for agent recovery.
     """
-    form_no = request.GET.get('form_no', '').strip()
-    consignment = None
-    opening_balance = Decimal('0.00')
-    error = None
-
-    if form_no:
-        try:
-            consignment = Consignment.objects.get(form_no=form_no)
-            opening_balance = services.calculate_opening_balance(consignment)
-        except Consignment.DoesNotExist:
-            error = _("No consignment found with Reference No. '%(no)s'") % {'no': form_no}
-
+    form_no = request.GET.get('form_no', '').strip().upper()
     agents = AgentMaster.objects.filter(status=AgentStatus.ACTIVE).order_by('agent_name')
-    context = {
-        'consignment': consignment,
-        'opening_balance': opening_balance,
-        'agents': agents,
-        'error': error,
-        'payment_modes': PaymentMode.choices,
-    }
+    context = _build_form3_lookup_context(form_no, agents)
     return render(request, 'receivables/partials/form3_builty_details.html', context)
 
 
-@login_required
-@role_required(['Admin', 'Accounts Clerk'])
+@role_required(['Admin', 'Accounts Clerk'], require_login=False)
 def htmx_form3_calc_closing(request):
     """
     HTMX partial: live closing balance preview for Form 3.
@@ -729,7 +888,9 @@ def htmx_form3_calc_closing(request):
 
     closing = opening - collected
     error = None
-    if collected > opening:
+    if collected <= Decimal('0.00'):
+        error = _("Amount collected must be greater than zero.")
+    elif collected > opening:
         error = _("Amount collected cannot exceed Opening Balance (Rs. %(opening)s).") % {'opening': f"{opening:,.2f}"}
 
     context = {
@@ -737,6 +898,7 @@ def htmx_form3_calc_closing(request):
         'amount_collected': collected,
         'closing_balance': max(Decimal('0.00'), closing),
         'error': error,
+        'has_loaded': True,
     }
     return render(request, 'receivables/partials/form3_closing_preview.html', context)
 
@@ -745,18 +907,47 @@ def htmx_form3_calc_closing(request):
 # FORM 4: LOSS AND DAMAGE SETTLEMENT
 # ==============================================================================
 
-@login_required
-@role_required(['Admin', 'Manager'])
+def _build_form4_lookup_context(form_no: str) -> dict:
+    consignment = None
+    error = None
+
+    if form_no:
+        consignment = (
+            Consignment.objects.select_related('truck_challan', 'customer')
+            .filter(form_no__iexact=form_no)
+            .first()
+        )
+        if not consignment:
+            error = _("No consignment found with Reference No. '%(no)s'") % {'no': form_no}
+        elif consignment.goods_condition not in [GoodsCondition.LOST, GoodsCondition.DAMAGED]:
+            error = _("Builty '%(no)s' has condition '%(cond)s'. Form 4 accepts ONLY Lost or Damaged builties.") % {
+                'no': consignment.form_no,
+                'cond': consignment.goods_condition,
+            }
+        elif hasattr(consignment, 'settlement') and consignment.settlement is not None:
+            error = _("Builty '%(no)s' has ALREADY been settled on %(date)s (Compensation: Rs. %(amt)s).") % {
+                'no': consignment.form_no,
+                'date': consignment.settlement.settlement_date.strftime('%d %b %Y'),
+                'amt': f"{consignment.settlement.amount_paid_to_customer:,.2f}",
+            }
+
+    return {
+        'consignment': consignment,
+        'error': error,
+    }
+
+
+@role_required(['Admin', 'Manager'], require_login=False)
 def form4_settlement(request):
     """
     Form 4: Loss and Damage Settlement.
     """
     success_data = None
     errors = {}
-    form_no_input = request.GET.get('form_no', '').strip()
+    form_no_input = request.GET.get('form_no', '').strip().upper()
 
     if request.method == 'POST':
-        form_no = request.POST.get('form_no', '').strip()
+        form_no = request.POST.get('form_no', '').strip().upper()
         compensation_paid = request.POST.get('compensation_paid', '0').strip()
         remarks = request.POST.get('remarks', '').strip()
 
@@ -766,12 +957,27 @@ def form4_settlement(request):
                 compensation_paid=Decimal(compensation_paid or '0'),
                 remarks=remarks,
                 user=request.user if request.user.is_authenticated else None,
+                ip_address=request.META.get('REMOTE_ADDR'),
             )
+            extra_info = _(
+                "Condition: %(cond)s | Compensation Paid: Rs. %(amt)s | Builty Status: CLOSED"
+            ) % {
+                'cond': settlement.goods_condition,
+                'amt': f"{settlement.amount_paid_to_customer:,.2f}",
+            }
             success_data = {
                 'settlement': settlement,
                 'consignment': settlement.consignment,
+                'extra_info': extra_info,
             }
-            messages.success(request, _("Settlement recorded and builty '%(form_no)s' closed.") % {'form_no': form_no})
+            messages.success(
+                request,
+                _("Settlement recorded and builty '%(form_no)s' closed — %(extra)s") % {
+                    'form_no': settlement.consignment.form_no,
+                    'extra': extra_info,
+                }
+            )
+            form_no_input = ''
         except ValidationError as e:
             errors['non_field'] = e.message if hasattr(e, 'message') else str(e)
             form_no_input = form_no
@@ -779,44 +985,66 @@ def form4_settlement(request):
             errors['non_field'] = str(e)
             form_no_input = form_no
 
+    # Bottom Search Grid: All Lost or Damaged Builties (Pending & Settled)
+    query = request.GET.get('q', '').strip()
+    condition_filter = request.GET.get('condition', '').strip()
+    settlement_filter = request.GET.get('settlement_status', '').strip()
+
+    claims_qs = (
+        Consignment.objects.select_related('truck_challan', 'customer', 'settlement')
+        .filter(goods_condition__in=[GoodsCondition.LOST, GoodsCondition.DAMAGED])
+        .order_by('-received_date', '-form_no')
+    )
+    if query:
+        claims_qs = claims_qs.filter(
+            Q(form_no__icontains=query) |
+            Q(builty_no__icontains=query) |
+            Q(customer_name__icontains=query) |
+            Q(contact_number__icontains=query)
+        )
+    if condition_filter in [GoodsCondition.LOST, GoodsCondition.DAMAGED]:
+        claims_qs = claims_qs.filter(goods_condition=condition_filter)
+    if settlement_filter == 'Pending':
+        claims_qs = claims_qs.filter(settlement__isnull=True)
+    elif settlement_filter == 'Settled':
+        claims_qs = claims_qs.filter(settlement__isnull=False)
+
+    pending_claims_count = Consignment.objects.filter(
+        goods_condition__in=[GoodsCondition.LOST, GoodsCondition.DAMAGED],
+        settlement__isnull=True,
+    ).count()
+    settled_claims_count = LossDamageSettlement.objects.count()
+
+    paginator = Paginator(claims_qs, 20)
+    page_obj = paginator.get_page(request.GET.get('page'))
+
+    lookup_ctx = _build_form4_lookup_context(form_no_input) if form_no_input else {
+        'consignment': None,
+        'error': None,
+    }
+
     context = {
         'form_no_input': form_no_input,
         'success_data': success_data,
         'errors': errors,
+        'page_obj': page_obj,
+        'query': query,
+        'condition_filter': condition_filter,
+        'settlement_filter': settlement_filter,
+        'pending_claims_count': pending_claims_count,
+        'settled_claims_count': settled_claims_count,
+        **lookup_ctx,
     }
     return render(request, 'receivables/form4_settlement.html', context)
 
 
-@login_required
-@role_required(['Admin', 'Manager'])
+@role_required(['Admin', 'Manager'], require_login=False)
 def htmx_form4_lookup(request):
     """
     HTMX partial: fetches consignment details for Form 4.
     """
-    form_no = request.GET.get('form_no', '').strip()
-    consignment = None
-    error = None
-
-    if form_no:
-        try:
-            consignment = Consignment.objects.get(form_no=form_no)
-            if consignment.goods_condition not in [GoodsCondition.LOST, GoodsCondition.DAMAGED]:
-                error = _("Builty '%(no)s' has condition '%(cond)s'. Form 4 accepts ONLY Lost or Damaged builties.") % {
-                    'no': form_no,
-                    'cond': consignment.goods_condition
-                }
-            elif hasattr(consignment, 'settlement') and consignment.settlement is not None:
-                error = _("Builty '%(no)s' has ALREADY been settled on %(date)s.") % {
-                    'no': form_no,
-                    'date': consignment.settlement.settlement_date
-                }
-        except Consignment.DoesNotExist:
-            error = _("No consignment found with Reference No. '%(no)s'") % {'no': form_no}
-
-    context = {
-        'consignment': consignment,
-        'error': error,
-    }
+    form_no = request.GET.get('form_no', '').strip().upper()
+    context = _build_form4_lookup_context(form_no)
     return render(request, 'receivables/partials/form4_builty_details.html', context)
 
 

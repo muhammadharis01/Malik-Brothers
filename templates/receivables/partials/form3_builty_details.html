@@ -1,56 +1,71 @@
 {% load i18n humanize %}
 
-<div id="form3-builty-details-container" class="space-y-6">
+<div id="form3-builty-details-container" class="space-y-8">
     {% if error %}
-    <div class="p-4 rounded-xl bg-rose-50 border-2 border-rose-300 text-rose-900 flex items-start gap-3">
-        <svg class="w-6 h-6 text-rose-600 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+    <div class="p-4 rounded-xl bg-rose-50 border border-rose-300 text-rose-900 flex items-start gap-3">
+        <svg class="w-5 h-5 text-rose-600 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+        </svg>
         <div>
-            <h4 class="text-sm font-bold uppercase tracking-wider text-rose-800">{% trans "Not Found" %}</h4>
-            <p class="text-base font-medium mt-0.5">{{ error }}</p>
+            <h4 class="text-xs font-bold uppercase tracking-wider text-rose-800">{% trans "Not Found" %}</h4>
+            <p class="text-sm font-medium mt-0.5">{{ error }}</p>
         </div>
     </div>
     {% elif consignment %}
     <!-- Fetched Read-Only Details Panel -->
-    <div class="p-6 bg-slate-50 border border-slate-200 rounded-2xl space-y-6">
-        <div class="flex items-center justify-between border-b border-slate-200 pb-4">
-            <h3 class="text-lg font-bold text-slate-900 flex items-center gap-2">
-                <svg class="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
-                <span>{% trans "Fetched Consignment Details" %}</span>
-            </h3>
-            <div class="flex items-center gap-2">
-                <span class="text-xs font-semibold px-2.5 py-1 rounded-full {% if consignment.status == 'Closed' %}bg-slate-200 text-slate-800{% else %}bg-[#D3E2F7] text-[#0047AB]{% endif %}">
+    <div class="bg-gradient-to-r from-blue-50/70 via-slate-50 to-teal-50/60 p-6 rounded-2xl border border-blue-200/80 space-y-5">
+        <div class="flex flex-wrap items-center justify-between border-b border-slate-200/80 pb-4 gap-3">
+            <div class="flex items-center gap-2.5">
+                <span class="w-7 h-7 rounded-lg bg-[#0047AB]/10 text-[#0047AB] flex items-center justify-center font-bold text-xs">2</span>
+                <h4 class="text-sm font-bold text-[#0047AB] uppercase tracking-wide">
+                    {% trans "Fetched Consignment Details (Read-Only)" %}
+                </h4>
+            </div>
+            <div class="flex items-center gap-2 flex-wrap">
+                {% if consignment.truck_challan %}
+                <span class="text-xs font-mono font-bold px-2.5 py-1 rounded-full bg-white text-[#0047AB] border border-blue-200">
+                    {{ consignment.truck_challan.truck_challan_key }}
+                </span>
+                {% endif %}
+                <span class="text-xs font-semibold px-2.5 py-1 rounded-full {% if consignment.status == 'Closed' %}bg-slate-200 text-slate-800{% else %}bg-blue-100 text-[#0047AB]{% endif %}">
                     {% trans "Status:" %} {{ consignment.status }}
                 </span>
-                <span class="text-xs font-semibold px-2.5 py-1 rounded-full {% if consignment.delivery_status == 'Delivered' %}bg-emerald-100 text-emerald-800{% else %}bg-amber-100 text-amber-800{% endif %}">
+                <span class="text-xs font-semibold px-2.5 py-1 rounded-full {% if consignment.delivery_status == 'Delivered' %}bg-emerald-100 text-emerald-800 border border-emerald-200{% else %}bg-amber-100 text-amber-800 border border-amber-200{% endif %}">
                     {{ consignment.delivery_status }}
                 </span>
             </div>
         </div>
 
         <!-- Details Grid -->
-        <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 text-sm">
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 text-sm">
             <div>
-                <label class="block text-xs font-semibold text-slate-500 uppercase">{% trans "Customer Name" %}</label>
-                <div class="mt-1 font-bold text-slate-900 bg-white p-2.5 rounded-2xl border border-slate-200">
+                <span class="block text-xs font-semibold text-slate-500 uppercase">{% trans "Customer Name" %}</span>
+                <div class="mt-1 font-bold text-slate-900 bg-white px-3 py-2 rounded-xl border border-slate-200">
                     {{ consignment.customer_name }}
                 </div>
             </div>
             <div>
-                <label class="block text-xs font-semibold text-slate-500 uppercase">{% trans "Contact Number" %}</label>
-                <div class="mt-1 font-medium text-slate-800 bg-white p-2.5 rounded-2xl border border-slate-200">
+                <span class="block text-xs font-semibold text-slate-500 uppercase">{% trans "Contact Number" %}</span>
+                <div class="mt-1 font-medium text-slate-800 bg-white px-3 py-2 rounded-xl border border-slate-200">
                     {{ consignment.contact_number }}
                 </div>
             </div>
             <div>
-                <label class="block text-xs font-semibold text-slate-500 uppercase">{% trans "Karachi Builty No." %}</label>
-                <div class="mt-1 font-mono font-bold text-slate-900 bg-white p-2.5 rounded-2xl border border-slate-200">
+                <span class="block text-xs font-semibold text-slate-500 uppercase">{% trans "Karachi Builty No." %}</span>
+                <div class="mt-1 font-mono font-bold text-slate-900 bg-white px-3 py-2 rounded-xl border border-slate-200">
                     {{ consignment.builty_no }}
                 </div>
             </div>
+            <div>
+                <span class="block text-xs font-semibold text-slate-500 uppercase">{% trans "Area / Region" %}</span>
+                <div class="mt-1 font-medium text-slate-800 bg-white px-3 py-2 rounded-xl border border-slate-200">
+                    {% if consignment.customer and consignment.customer.area_region %}{{ consignment.customer.area_region }}{% else %}--{% endif %}
+                </div>
+            </div>
             {% if consignment.delivery_address %}
-            <div class="sm:col-span-2 md:col-span-3">
-                <label class="block text-xs font-semibold text-slate-500 uppercase">{% trans "Delivery Address" %}</label>
-                <div class="mt-1 font-medium text-slate-800 bg-white p-2.5 rounded-2xl border border-slate-200">
+            <div class="sm:col-span-2 lg:col-span-4">
+                <span class="block text-xs font-semibold text-slate-500 uppercase">{% trans "Delivery Address" %}</span>
+                <div class="mt-1 font-medium text-slate-800 bg-white px-3 py-2 rounded-xl border border-slate-200">
                     {{ consignment.delivery_address }}
                 </div>
             </div>
@@ -58,108 +73,166 @@
         </div>
 
         <!-- Financial Summary Ribbon -->
-        <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-3 border-t border-slate-200">
-            <div class="p-3 bg-white rounded-xl border border-slate-200">
-                <span class="text-xs font-semibold text-slate-500 uppercase">{% trans "Total Charges" %}</span>
-                <p class="text-lg font-bold text-slate-900 mt-0.5">Rs. {{ consignment.total_amount|floatformat:2|intcomma }}</p>
-                <span class="text-xs text-slate-400">({% trans "Advance" %}: Rs. {{ consignment.advance_received|floatformat:2|intcomma }})</span>
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 pt-3 border-t border-slate-200/80">
+            <div class="p-3.5 bg-white rounded-xl border border-slate-200">
+                <span class="text-xs font-semibold text-slate-500 uppercase">{% trans "Total Freight" %}</span>
+                <p class="text-lg font-bold font-mono text-slate-900 mt-0.5">Rs. {{ consignment.total_amount|floatformat:2|intcomma }}</p>
+                {% if consignment.loading_charges > 0 or consignment.godam_charges > 0 %}
+                <span class="text-[11px] text-slate-500">
+                    + {% trans "Loading:" %} {{ consignment.loading_charges|floatformat:0|intcomma }} / {% trans "Godam:" %} {{ consignment.godam_charges|floatformat:0|intcomma }}
+                </span>
+                {% endif %}
             </div>
-            <div class="p-3 bg-white rounded-xl border border-slate-200">
+            <div class="p-3.5 bg-white rounded-xl border border-slate-200">
+                <span class="text-xs font-semibold text-slate-500 uppercase">{% trans "Advance Received" %}</span>
+                <p class="text-lg font-bold font-mono text-slate-800 mt-0.5">Rs. {{ consignment.advance_received|floatformat:2|intcomma }}</p>
+                <span class="text-[11px] text-slate-400">{% trans "Gross:" %} Rs. {{ consignment.gross_amount|floatformat:2|intcomma }}</span>
+            </div>
+            <div class="p-3.5 bg-white rounded-xl border border-slate-200">
                 <span class="text-xs font-semibold text-slate-500 uppercase">{% trans "Cumulative Received" %}</span>
-                <p class="text-lg font-bold text-emerald-700 mt-0.5">Rs. {{ consignment.cumulative_received|floatformat:2|intcomma }}</p>
+                <p class="text-lg font-bold font-mono text-emerald-700 mt-0.5">Rs. {{ consignment.cumulative_received|floatformat:2|intcomma }}</p>
+                <span class="text-[11px] text-slate-400">{% trans "Advance + Earlier Receipts" %}</span>
             </div>
-            <div class="p-3 bg-blue-50/80 rounded-xl border-2 border-blue-200">
-                <span class="text-xs font-bold text-[#003A8C] uppercase tracking-wider">{% trans "Opening Balance (To Recover)" %}</span>
+            <div class="p-3.5 bg-[#E8F0FB] rounded-xl border-2 border-[#A9C5EE]">
+                <span class="text-xs font-bold text-[#003A8C] uppercase tracking-wider">{% trans "Opening Balance" %}</span>
                 <p class="text-2xl font-extrabold text-[#0047AB] mt-0.5 font-mono">
                     Rs. {{ opening_balance|floatformat:2|intcomma }}
                 </p>
             </div>
         </div>
+
+        {% if receipts %}
+        <div class="pt-3 border-t border-slate-200/80">
+            <span class="block text-xs font-bold text-slate-600 uppercase mb-2">{% trans "Previous Payment Receipts" %} ({{ receipts|length }})</span>
+            <div class="overflow-x-auto bg-white rounded-xl border border-slate-200">
+                <table class="w-full text-left text-xs text-slate-600">
+                    <thead>
+                        <tr>
+                            <th class="px-3 py-2">{% trans "Date" %}</th>
+                            <th class="px-3 py-2">{% trans "Source" %}</th>
+                            <th class="px-3 py-2">{% trans "Mode" %}</th>
+                            <th class="px-3 py-2 text-right">{% trans "Amount" %}</th>
+                            <th class="px-3 py-2 text-right">{% trans "Balance After" %}</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-slate-100">
+                        {% for r in receipts %}
+                        <tr>
+                            <td class="px-3 py-2">{{ r.receipt_date|date:"d M Y" }}</td>
+                            <td class="px-3 py-2 font-medium text-slate-800">
+                                {{ r.received_via }}{% if r.agent %} ({{ r.agent.agent_name }}){% endif %}
+                            </td>
+                            <td class="px-3 py-2">{{ r.payment_mode }}</td>
+                            <td class="px-3 py-2 text-right font-mono font-bold text-emerald-700">Rs. {{ r.amount_received|floatformat:2|intcomma }}</td>
+                            <td class="px-3 py-2 text-right font-mono text-slate-700">Rs. {{ r.receivable_after|floatformat:2|intcomma }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        {% endif %}
     </div>
 
-    <!-- Agent Recovery Form Section -->
-    <div class="space-y-6 pt-2">
-        <h3 class="text-lg font-bold text-slate-900 border-b border-slate-200 pb-3">
-            {% trans "Agent Recovery Details" %}
-        </h3>
-
-        <!-- Agent LOV Selection -->
-        <div>
-            <label for="id_agent_id" class="block text-base font-semibold text-slate-800 mb-2">
-                {% trans "Collection Agent" %} <span class="text-rose-500 font-bold">*</span>
-            </label>
-            <p class="text-xs text-slate-500 mb-2">{% trans "Select the field agent who recovered this cash from the customer" %}</p>
-            <select name="agent_id" id="id_agent_id" required
-                    class="w-full h-12 px-4 text-lg bg-white border border-slate-300 rounded-xl focus:border-[#14B8A6] focus:ring-2 focus:ring-[#40E0D0]/30 outline-none transition-all font-semibold">
-                <option value="">-- {% trans "Select Collection Agent" %} --</option>
-                {% for ag in agents %}
-                <option value="{{ ag.agent_id }}">{{ ag.agent_name }} {% if ag.area_region %}({{ ag.area_region }}){% endif %}</option>
-                {% endfor %}
-            </select>
+    {% if consignment.status == 'Closed' or opening_balance <= 0 %}
+    <div class="p-5 rounded-2xl bg-emerald-50 border border-emerald-300 text-emerald-900 flex items-center gap-3">
+        <svg class="w-6 h-6 text-emerald-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+        </svg>
+        <div class="text-sm font-medium">
+            {% trans "There is no remaining receivable balance to recover on this builty" %}
+            (<strong>{% trans "Status:" %} {{ consignment.status }}</strong>).
         </div>
+    </div>
+    {% else %}
+    <!-- Agent Recovery Entry Section -->
+    <div class="space-y-5">
+        <h4 class="text-base font-bold text-[#0047AB] uppercase tracking-wide border-l-4 border-[#14B8A6] pl-3">
+            {% trans "Agent Recovery Entry" %}
+        </h4>
 
-        <!-- Amount Collected & Mode -->
-        <div class="grid grid-cols-1 sm:grid-cols-2 gap-7">
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
+            <!-- Collection Agent LOV -->
             <div>
-                <label for="id_amount_collected" class="block text-base font-semibold text-slate-800 mb-2">
-                    {% trans "Amount Collected by Agent (Rs.)" %} <span class="text-rose-500 font-bold">*</span>
+                <label for="id_agent_id" class="text-sm font-semibold text-slate-800">
+                    {% trans "Collection Agent" %} <span class="text-rose-500 font-bold">*</span>
                 </label>
-                <p class="text-xs text-slate-500 mb-2">
-                    {% trans "Required > 0. Max: Rs. " %}{{ opening_balance|floatformat:2|intcomma }}
-                </p>
+                <select name="agent_id" id="id_agent_id" required
+                        class="w-full h-12 px-4 text-base bg-white border border-slate-300 rounded-xl focus:border-[#14B8A6] focus:ring-2 focus:ring-[#40E0D0]/30 outline-none transition-all font-semibold">
+                    <option value="">-- {% trans "Select Collection Agent" %} --</option>
+                    {% for ag in agents %}
+                    <option value="{{ ag.agent_id }}">{{ ag.agent_name }}{% if ag.area_region %} ({{ ag.area_region }}){% endif %}</option>
+                    {% endfor %}
+                </select>
+                {% if not agents %}
+                <p class="text-xs text-amber-700 mt-1">{% trans "No active agents found. Add agents in Admin → Agent Master." %}</p>
+                {% endif %}
+            </div>
+
+            <!-- Amount Collected -->
+            <div>
+                <label for="id_amount_collected" class="text-sm font-semibold text-slate-800">
+                    {% trans "Amount Collected (Rs.)" %} <span class="text-rose-500 font-bold">*</span>
+                </label>
                 <input type="number" step="0.01" min="0.01" max="{{ opening_balance }}"
                        name="amount_collected" id="id_amount_collected" required
-                       value="{% if opening_balance > 0 %}{{ opening_balance }}{% else %}0{% endif %}"
+                       value="{{ opening_balance }}"
                        hx-get="{% url 'receivables:htmx_form3_calc_closing' %}"
                        hx-target="#form3-closing-preview"
                        hx-swap="outerHTML"
                        hx-trigger="keyup changed delay:300ms, change"
                        hx-vals='{"opening_balance": "{{ opening_balance }}"}'
-                       class="w-full h-12 px-4 text-xl font-bold bg-white border border-slate-300 rounded-xl focus:border-[#14B8A6] focus:ring-2 focus:ring-[#40E0D0]/30 outline-none transition-all font-mono">
+                       class="w-full h-12 px-4 text-lg font-bold bg-white border border-slate-300 rounded-xl focus:border-[#14B8A6] focus:ring-2 focus:ring-[#40E0D0]/30 outline-none transition-all font-mono">
             </div>
 
+            <!-- Payment Mode -->
             <div>
-                <label for="id_payment_mode" class="block text-base font-semibold text-slate-800 mb-2">
+                <label for="id_payment_mode" class="text-sm font-semibold text-slate-800">
                     {% trans "Payment Mode" %}
                 </label>
-                <p class="text-xs text-slate-500 mb-2">{% trans "Method of collection deposited by agent" %}</p>
                 <select name="payment_mode" id="id_payment_mode"
-                        class="w-full h-12 px-4 text-lg bg-white border border-slate-300 rounded-xl focus:border-[#14B8A6] focus:ring-2 focus:ring-[#40E0D0]/30 outline-none transition-all">
+                        class="w-full h-12 px-4 text-base bg-white border border-slate-300 rounded-xl focus:border-[#14B8A6] focus:ring-2 focus:ring-[#40E0D0]/30 outline-none transition-all">
                     {% for val, label in payment_modes %}
                     <option value="{{ val }}">{{ label }}</option>
                     {% endfor %}
                 </select>
             </div>
-        </div>
 
-        <!-- Collection Date & Closing Preview -->
-        <div class="grid grid-cols-1 sm:grid-cols-2 gap-7 items-end">
+            <!-- Collection Date -->
             <div>
-                <label class="block text-base font-semibold text-slate-700 mb-2">
+                <label class="text-sm font-semibold text-slate-700">
                     {% trans "Collection Date" %}
                 </label>
                 <input type="text" readonly value="{% now 'd M Y' %} ({% trans 'Today' %})"
                        class="w-full h-12 px-4 text-base bg-slate-100 text-slate-700 border border-slate-300 rounded-xl cursor-not-allowed select-none shadow-inner font-medium">
             </div>
 
-            <!-- Closing Preview -->
-            {% include "receivables/partials/form3_closing_preview.html" with closing_balance=0 opening_balance=opening_balance amount_collected=opening_balance consignment=consignment %}
+            <!-- Closing Balance Preview -->
+            <div class="sm:col-span-2">
+                {% include "receivables/partials/form3_closing_preview.html" with closing_balance=0 opening_balance=opening_balance amount_collected=opening_balance has_loaded=True %}
+            </div>
         </div>
 
-        <!-- Submit Button -->
-        <div class="pt-4">
-            <button type="submit" class="w-full h-14 bg-blue-600 hover:bg-[#1F5FC4] text-white text-xl font-bold rounded-2xl transition-all flex items-center justify-center gap-3">
-                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg>
-                <span>{% trans "Record Agent Recovery & Update Receivable" %}</span>
+        <!-- Submit Row -->
+        <div class="pt-6 border-t border-slate-100 flex items-center justify-end gap-3">
+            <a href="{% url 'receivables:form3_recovery' %}"
+               class="h-12 px-6 bg-slate-100 hover:bg-slate-200 text-slate-700 text-sm font-semibold rounded-xl flex items-center justify-center transition-all">
+                {% trans "Reset" %}
+            </a>
+            <button type="submit"
+                    class="h-12 px-10 bg-[#0047AB] hover:bg-[#003A8C] text-white text-base font-semibold rounded-xl shadow-lg shadow-[#0047AB]/20 transition-all flex items-center justify-center gap-2 cursor-pointer">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/>
+                </svg>
+                <span>{% trans "Record Agent Recovery" %}</span>
             </button>
         </div>
     </div>
+    {% endif %}
+
     {% else %}
-    <div class="p-8 text-center text-slate-400 border-2 border-dashed border-slate-200 rounded-2xl">
-        <svg class="w-10 h-10 mx-auto text-slate-300 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
-        <p class="text-base font-medium">{% trans "Type the Receiving Reference No. above to load builty details." %}</p>
-        <p class="text-xs text-slate-400 mt-1">{% trans "Example format: MB-2026-000001" %}</p>
+    <div class="p-6 text-center text-slate-400 border-2 border-dashed border-slate-200 rounded-2xl bg-slate-50/50">
+        <p class="text-sm font-medium text-slate-500">{% trans "Enter a Receiving Reference No. or select an open builty below." %}</p>
     </div>
     {% endif %}
 </div>
-

@@ -1,36 +1,42 @@
 {% extends "base.html" %}
 {% load i18n humanize %}
 
-{% block title %}{% trans "Inbound Truck & Builty Receiving" %}{% endblock %}
-{% block page_title %}{% trans "Consignment Receiving (Inbound Truck & Builty Management)" %}{% endblock %}
+{% block title %}{% trans "Consignment Receiving" %}{% endblock %}
+{% block page_title %}{% trans "Consignment Receiving" %}{% endblock %}
 
 {% block content %}
 <div class="space-y-8">
 
     <!-- Draft Restored Notification Banner (shown via JS if draft restored) -->
-    <div id="draft-restored-banner" style="display:none" class="p-4 rounded-xl bg-blue-50 border border-blue-200 text-[#003A8C] flex items-center justify-between gap-4">
+    <div id="draft-restored-banner" style="display:none"
+        class="p-4 rounded-xl bg-blue-50 border border-blue-200 text-[#003A8C] flex items-center justify-between gap-4">
         <div class="flex items-center gap-2.5 text-sm font-semibold">
-            <svg class="w-5 h-5 text-[#0047AB] flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+            <svg class="w-5 h-5 text-[#0047AB] flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                    d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
             <span>{% trans "Saved form draft restored." %}</span>
         </div>
-        <button type="button" onclick="clearCurrentDraftAndReset()" class="px-3.5 py-1.5 text-xs font-semibold bg-white border border-blue-200 hover:bg-blue-100 text-[#0047AB] rounded-lg transition-all cursor-pointer">
+        <button type="button" onclick="clearCurrentDraftAndReset()"
+            class="px-3.5 py-1.5 text-xs font-semibold bg-white border border-blue-200 hover:bg-blue-100 text-[#0047AB] rounded-lg transition-all cursor-pointer">
             {% trans "Clear Draft" %}
         </button>
     </div>
 
     {% if active_header %}
     <div class="flex justify-end">
-        <a href="{% url 'receivables:form1_receiving' %}" class="inline-flex items-center gap-2 px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-sm rounded-xl transition-all">
+        <a href="{% url 'receivables:form1_receiving' %}"
+            class="inline-flex items-center gap-2 px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-sm rounded-xl transition-all">
             <span>{% trans "New Truck-Challan" %}</span>
         </a>
     </div>
     {% endif %}
 
     {% if success_consignment and active_header and active_header.status == 'Complete' %}
-        {% url 'receivables:form1_receiving' as fresh_receiving_url %}
-        {% include "partials/success_banner.html" with ref_no=active_header.truck_challan_key ref_label=_("Truck-Challan Key") title=_("Full Consignment Received") extra_info=_("All expected builties under this truck-challan have been received.") new_entry_url=fresh_receiving_url %}
+    {% url 'receivables:form1_receiving' as fresh_receiving_url %}
+    {% include "partials/success_banner.html" with ref_no=active_header.truck_challan_key ref_label=_("Truck-Challan Key") title=_("Full Consignment Received") extra_info=_("All expected builties under this truck-challan have been received.") new_entry_url=fresh_receiving_url %}
     {% elif success_consignment and not active_header %}
-        {% include "partials/success_banner.html" with ref_no=success_consignment.form_no title=_("Consignment Saved") new_entry_url=request.get_full_path %}
+    {% include "partials/success_banner.html" with ref_no=success_consignment.form_no title=_("Consignment Saved") new_entry_url=request.get_full_path %}
     {% endif %}
 
     <!-- ====================================================================== -->
@@ -39,23 +45,26 @@
     <div class="bg-white rounded-2xl border border-slate-200/80 shadow-lg shadow-slate-200/50 p-6 sm:p-8">
         <div class="flex items-center justify-between border-b border-slate-100 pb-4 mb-6">
             <div class="flex items-center gap-3">
-                <span class="w-8 h-8 rounded-lg bg-[#0047AB]/10 text-[#0047AB] flex items-center justify-center font-bold text-sm">1</span>
+                <span
+                    class="w-8 h-8 rounded-lg bg-[#0047AB]/10 text-[#0047AB] flex items-center justify-center font-bold text-sm">1</span>
                 <div>
                     <h3 class="text-base font-bold text-[#0047AB] uppercase tracking-wide">
                         {% trans "Inbound Truck-Challan Header" %}
                     </h3>
-                    
+
                 </div>
             </div>
 
             {% if active_header %}
             <div class="flex items-center gap-2">
                 {% if active_header.status == 'Complete' %}
-                <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-emerald-100 text-emerald-800 border border-emerald-300">
+                <span
+                    class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-emerald-100 text-emerald-800 border border-emerald-300">
                     <span class="w-2 h-2 rounded-full bg-emerald-600"></span> {% trans "Status: Complete" %}
                 </span>
                 {% else %}
-                <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-amber-100 text-amber-800 border border-amber-300">
+                <span
+                    class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-amber-100 text-amber-800 border border-amber-300">
                     <span class="w-2 h-2 rounded-full bg-amber-500 animate-pulse"></span> {% trans "Status: Pending" %}
                 </span>
                 {% endif %}
@@ -65,163 +74,185 @@
 
         {% if errors.header_error %}
         <div class="mb-6 p-4 rounded-xl bg-rose-50 border border-rose-300 text-rose-900 flex items-start gap-3">
-            <svg class="w-5 h-5 text-rose-600 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+            <svg class="w-5 h-5 text-rose-600 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor"
+                viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                    d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
             <p class="text-sm font-medium">{{ errors.header_error }}</p>
         </div>
         {% endif %}
 
         {% if active_header %}
-            <!-- ACTIVE HEADER: LOCKED DISPLAY & SUMMARY CARD -->
-            <div class="bg-gradient-to-r from-blue-50/70 via-slate-50 to-teal-50/60 p-6 rounded-2xl border border-blue-200/80">
-                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-                    <div>
-                        <span class="block text-xs font-semibold text-slate-500 uppercase">{% trans "Actual Truck No." %}</span>
-                        <span class="text-lg font-bold text-slate-900 font-mono">{{ active_header.truck_no }}</span>
-                        
-                    </div>
+        <!-- ACTIVE HEADER: LOCKED DISPLAY & SUMMARY CARD -->
+        <div
+            class="bg-gradient-to-r from-blue-50/70 via-slate-50 to-teal-50/60 p-6 rounded-2xl border border-blue-200/80">
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+                <div>
+                    <span class="block text-xs font-semibold text-slate-500 uppercase">{% trans "Actual Truck No." %}</span>
+                    <span class="text-lg font-bold text-slate-900 font-mono">{{ active_header.truck_no }}</span>
 
-                    <div>
-                        <span class="block text-xs font-semibold text-slate-500 uppercase">{% trans "Karachi Challan No." %}</span>
-                        <span class="text-lg font-bold text-slate-900 font-mono">{{ active_header.challan_no }}</span>
-                        
-                    </div>
-
-                    <div>
-                        <span class="block text-xs font-semibold text-slate-500 uppercase">{% trans "Truck-Challan Key" %}</span>
-                        <span class="text-lg font-bold text-[#0047AB] font-mono tracking-wide">{{ active_header.truck_challan_key }}</span>
-                        
-                    </div>
-
-                    <div>
-                        <span class="block text-xs font-semibold text-slate-500 uppercase">{% trans "Builty Count Control" %}</span>
-                        <div class="flex items-baseline gap-2">
-                            <span class="text-2xl font-black {% if active_header.builties_count >= active_header.no_of_builties %}text-emerald-700{% else %}text-[#0047AB]{% endif %}">
-                                {{ active_header.builties_count }}
-                            </span>
-                            <span class="text-sm font-semibold text-slate-500">/ {{ active_header.no_of_builties }} {% trans "Expected" %}</span>
-                        </div>
-                        <span class="block text-[11px] text-slate-500">{% trans "Total Nags (Boxes):" %} <strong class="text-slate-800">{{ active_header.total_nags }}</strong></span>
-                    </div>
                 </div>
 
-                <!-- Progress Bar -->
-                <div class="mt-5 pt-4 border-t border-slate-200/80 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-                    <div class="flex-1 max-w-md">
-                        <div class="w-full bg-slate-200 rounded-full h-2.5 overflow-hidden">
-                            {% widthratio active_header.builties_count active_header.no_of_builties 100 as pct %}
-                            <div class="h-2.5 rounded-full transition-all duration-500 {% if pct >= 100 %}bg-emerald-600{% else %}bg-[#0047AB]{% endif %}" style="width: {{ pct }}%"></div>
-                        </div>
-                    </div>
+                <div>
+                    <span class="block text-xs font-semibold text-slate-500 uppercase">{% trans "Karachi Challan No." %}</span>
+                    <span class="text-lg font-bold text-slate-900 font-mono">{{ active_header.challan_no }}</span>
 
-                    <div class="flex items-center gap-3">
-                        {% if not active_header.is_locked %}
-                        <button type="button" onclick="document.getElementById('header-edit-modal').style.display='flex'"
-                                class="text-xs font-semibold px-3 py-1.5 bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 rounded-xl transition-all">
-                            <svg class="w-3.5 h-3.5 inline mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
-                            {% trans "Edit Header" %}
-                        </button>
-                        {% else %}
-                        <span class="text-xs font-medium text-slate-500 flex items-center gap-1">
-                            <svg class="w-4 h-4 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg>
-                            {% trans "Header Locked" %}
+                </div>
+
+                <div>
+                    <span class="block text-xs font-semibold text-slate-500 uppercase">{% trans "Truck-Challan Key" %}</span>
+                    <span class="text-lg font-bold text-[#0047AB] font-mono tracking-wide">{{ active_header.truck_challan_key }}</span>
+
+                </div>
+
+                <div>
+                    <span class="block text-xs font-semibold text-slate-500 uppercase">{% trans "Builty Count Control" %}</span>
+                    <div class="flex items-baseline gap-2">
+                        <span
+                            class="text-2xl font-black {% if active_header.builties_count >= active_header.no_of_builties %}text-emerald-700{% else %}text-[#0047AB]{% endif %}">
+                            {{ active_header.builties_count }}
                         </span>
-                        {% endif %}
+                        <span class="text-sm font-semibold text-slate-500">/ {{ active_header.no_of_builties }} {% trans "Expected" %}</span>
+                    </div>
+                    <span class="block text-[11px] text-slate-500">{% trans "Total Nags (Boxes):" %} <strong
+                            class="text-slate-800">{{ active_header.total_nags }}</strong></span>
+                </div>
+            </div>
+
+            <!-- Progress Bar -->
+            <div
+                class="mt-5 pt-4 border-t border-slate-200/80 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                <div class="flex-1 max-w-md">
+                    <div class="w-full bg-slate-200 rounded-full h-2.5 overflow-hidden">
+                        {% widthratio active_header.builties_count active_header.no_of_builties 100 as pct %}
+                        <div class="h-2.5 rounded-full transition-all duration-500 {% if pct >= 100 %}bg-emerald-600{% else %}bg-[#0047AB]{% endif %}"
+                            style="width: {{ pct }}%"></div>
                     </div>
                 </div>
-            </div>
 
-            <!-- MODAL: EDIT HEADER (ALLOWED BEFORE ANY BUILTY IS CREATED) -->
-            <div id="header-edit-modal" style="display:none;position:fixed;inset:0;z-index:60;align-items:center;justify-content:center;padding:1rem;background:rgba(15,23,42,.5)">
-                <div class="bg-white rounded-2xl border border-slate-200 shadow-2xl p-6 sm:p-8 max-w-lg w-full">
-                    <h3 class="text-lg font-bold text-slate-900 mb-1">{% trans "Edit Truck-Challan Header" %}</h3>
-
-                    
-                    <form method="post" action="{% url 'receivables:form1_receiving' %}" class="space-y-4">
-                        {% csrf_token %}
-                        <input type="hidden" name="action" value="edit_header">
-                        <input type="hidden" name="current_key" value="{{ active_header.truck_challan_key }}">
-
-                        <div>
-                            <label class="block text-xs font-semibold text-slate-700 uppercase mb-1">{% trans "Truck No. (Actual)" %}</label>
-                            <input type="text" name="truck_no" required value="{{ active_header.truck_no }}"
-                                   class="w-full h-11 px-3 text-sm rounded-xl border border-slate-300 focus:border-[#14B8A6] outline-none font-mono uppercase">
-                        </div>
-
-                        <div>
-                            <label class="block text-xs font-semibold text-slate-700 uppercase mb-1">{% trans "Challan No." %}</label>
-                            <input type="text" name="challan_no" required value="{{ active_header.challan_no }}"
-                                   class="w-full h-11 px-3 text-sm rounded-xl border border-slate-300 focus:border-[#14B8A6] outline-none font-mono uppercase">
-                        </div>
-
-                        <div>
-                            <label class="block text-xs font-semibold text-slate-700 uppercase mb-1">{% trans "Expected No. of Builties" %}</label>
-                            <input type="number" min="1" name="no_of_builties" required value="{{ active_header.no_of_builties }}"
-                                   class="w-full h-11 px-3 text-sm rounded-xl border border-slate-300 focus:border-[#14B8A6] outline-none font-mono">
-                        </div>
-
-                        <div class="pt-4 flex items-center justify-end gap-3 border-t border-slate-100">
-                            <button type="button" onclick="document.getElementById('header-edit-modal').style.display='none'"
-                                    class="h-10 px-4 bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold text-sm rounded-xl">
-                                {% trans "Cancel" %}
-                            </button>
-                            <button type="submit" class="h-10 px-6 bg-[#0047AB] hover:bg-[#003A8C] text-white font-semibold text-sm rounded-xl">
-                                {% trans "Save Changes" %}
-                            </button>
-                        </div>
-                    </form>
+                <div class="flex items-center gap-3">
+                    {% if not active_header.is_locked %}
+                    <button type="button" onclick="document.getElementById('header-edit-modal').style.display='flex'"
+                        class="text-xs font-semibold px-3 py-1.5 bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 rounded-xl transition-all">
+                        <svg class="w-3.5 h-3.5 inline mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                        </svg>
+                        {% trans "Edit Header" %}
+                    </button>
+                    {% else %}
+                    <span class="text-xs font-medium text-slate-500 flex items-center gap-1">
+                        <svg class="w-4 h-4 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                        </svg>
+                        {% trans "Header Locked" %}
+                    </span>
+                    {% endif %}
                 </div>
             </div>
+        </div>
+
+        <!-- MODAL: EDIT HEADER (ALLOWED BEFORE ANY BUILTY IS CREATED) -->
+        <div id="header-edit-modal"
+            style="display:none;position:fixed;inset:0;z-index:60;align-items:center;justify-content:center;padding:1rem;background:rgba(15,23,42,.5)">
+            <div class="bg-white rounded-2xl border border-slate-200 shadow-2xl p-6 sm:p-8 max-w-lg w-full">
+                <h3 class="text-lg font-bold text-slate-900 mb-1">{% trans "Edit Truck-Challan Header" %}</h3>
+
+
+                <form method="post" action="{% url 'receivables:form1_receiving' %}" class="space-y-4">
+                    {% csrf_token %}
+                    <input type="hidden" name="action" value="edit_header">
+                    <input type="hidden" name="current_key" value="{{ active_header.truck_challan_key }}">
+
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-700 uppercase mb-1">{% trans "Truck No. (Actual)" %}</label>
+                        <input type="text" name="truck_no" required value="{{ active_header.truck_no }}"
+                            class="w-full h-11 px-3 text-sm rounded-xl border border-slate-300 focus:border-[#14B8A6] outline-none font-mono uppercase">
+                    </div>
+
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-700 uppercase mb-1">{% trans "Challan No." %}</label>
+                        <input type="text" name="challan_no" required value="{{ active_header.challan_no }}"
+                            class="w-full h-11 px-3 text-sm rounded-xl border border-slate-300 focus:border-[#14B8A6] outline-none font-mono uppercase">
+                    </div>
+
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-700 uppercase mb-1">{% trans "Expected No. of Builties" %}</label>
+                        <input type="number" min="1" name="no_of_builties" required
+                            value="{{ active_header.no_of_builties }}"
+                            class="w-full h-11 px-3 text-sm rounded-xl border border-slate-300 focus:border-[#14B8A6] outline-none font-mono">
+                    </div>
+
+                    <div class="pt-4 flex items-center justify-end gap-3 border-t border-slate-100">
+                        <button type="button"
+                            onclick="document.getElementById('header-edit-modal').style.display='none'"
+                            class="h-10 px-4 bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold text-sm rounded-xl">
+                            {% trans "Cancel" %}
+                        </button>
+                        <button type="submit"
+                            class="h-10 px-6 bg-[#0047AB] hover:bg-[#003A8C] text-white font-semibold text-sm rounded-xl">
+                            {% trans "Save Changes" %}
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
 
         {% else %}
-            <!-- HEADER ENTRY FORM (SAVE OR OPEN EXISTING) -->
-            <form method="post" id="header-entry-form" action="{% url 'receivables:form1_receiving' %}" class="space-y-6">
-                {% csrf_token %}
-                <input type="hidden" name="action" value="open_or_save_header">
+        <!-- HEADER ENTRY FORM (SAVE OR OPEN EXISTING) -->
+        <form method="post" id="header-entry-form" action="{% url 'receivables:form1_receiving' %}" class="space-y-6">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="open_or_save_header">
 
-                <div class="grid grid-cols-1 sm:grid-cols-3 gap-6">
-                    <div>
-                        <label for="header_truck_no" class="block text-sm font-semibold text-slate-800 mb-2">
-                            {% trans "Truck No. (Actual)" %} <span class="text-rose-500 font-bold">*</span>
-                        </label>
-                        <input type="text" name="truck_no" id="header_truck_no" required autofocus
-                               placeholder="e.g. TK-9834"
-                               oninput="updateTruckChallanKeyPreview()"
-                               class="w-full h-12 px-4 text-lg bg-white border border-slate-300 rounded-xl focus:border-[#14B8A6] focus:ring-4 focus:ring-[#40E0D0]/30 outline-none transition-all font-mono uppercase">
-                    </div>
-
-                    <div>
-                        <label for="header_challan_no" class="block text-sm font-semibold text-slate-800 mb-2">
-                            {% trans "Challan No." %} <span class="text-rose-500 font-bold">*</span>
-                        </label>
-                        <input type="text" name="challan_no" id="header_challan_no" required
-                               placeholder="e.g. CH-2302"
-                               oninput="updateTruckChallanKeyPreview()"
-                               class="w-full h-12 px-4 text-lg bg-white border border-slate-300 rounded-xl focus:border-[#14B8A6] focus:ring-4 focus:ring-[#40E0D0]/30 outline-none transition-all font-mono uppercase">
-                    </div>
-
-                    <div>
-                        <label for="header_no_of_builties" class="block text-sm font-semibold text-slate-800 mb-2">
-                            {% trans "No. of Builties" %} <span class="text-rose-500 font-bold">*</span>
-                        </label>
-                        <input type="number" min="1" step="1" name="no_of_builties" id="header_no_of_builties"
-                               placeholder="e.g. 20"
-                               class="w-full h-12 px-4 text-lg bg-white border border-slate-300 rounded-xl focus:border-[#14B8A6] focus:ring-4 focus:ring-[#40E0D0]/30 outline-none transition-all font-mono">
-                    </div>
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-6">
+                <div>
+                    <label for="header_truck_no" class="block text-sm font-semibold text-slate-800 mb-2">
+                        {% trans "Truck No. (Actual)" %} <span class="text-rose-500 font-bold">*</span>
+                    </label>
+                    <input type="text" name="truck_no" id="header_truck_no" required autofocus
+                        placeholder="e.g. TK-9834" oninput="updateTruckChallanKeyPreview()"
+                        class="w-full h-12 px-4 text-lg bg-white border border-slate-300 rounded-xl focus:border-[#14B8A6] focus:ring-4 focus:ring-[#40E0D0]/30 outline-none transition-all font-mono uppercase">
                 </div>
 
-                <!-- Auto-Generated Key Preview & Action (Separate Line) -->
-                <div class="bg-slate-50/80 p-5 rounded-xl border border-slate-200 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-                    <div>
-                        <span class="block text-xs font-semibold text-slate-500 uppercase">{% trans "Truck-Challan Key" %}</span>
-                        <span id="truck_challan_key_preview" class="text-lg font-bold text-[#0047AB] font-mono">---</span>
-                    </div>
-
-                    <button type="submit" class="h-12 px-10 bg-[#0047AB] hover:bg-[#003A8C] text-white text-base font-semibold rounded-xl shadow-lg shadow-[#0047AB]/20 transition-all flex items-center justify-center gap-2 cursor-pointer">
-                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4"/></svg>
-                        <span>{% trans "Save Header" %}</span>
-                    </button>
+                <div>
+                    <label for="header_challan_no" class="block text-sm font-semibold text-slate-800 mb-2">
+                        {% trans "Challan No." %} <span class="text-rose-500 font-bold">*</span>
+                    </label>
+                    <input type="text" name="challan_no" id="header_challan_no" required placeholder="e.g. CH-2302"
+                        oninput="updateTruckChallanKeyPreview()"
+                        class="w-full h-12 px-4 text-lg bg-white border border-slate-300 rounded-xl focus:border-[#14B8A6] focus:ring-4 focus:ring-[#40E0D0]/30 outline-none transition-all font-mono uppercase">
                 </div>
-            </form>
+
+                <div>
+                    <label for="header_no_of_builties" class="block text-sm font-semibold text-slate-800 mb-2">
+                        {% trans "No. of Builties" %} <span class="text-rose-500 font-bold">*</span>
+                    </label>
+                    <input type="number" min="1" step="1" name="no_of_builties" id="header_no_of_builties"
+                        placeholder="e.g. 20"
+                        class="w-full h-12 px-4 text-lg bg-white border border-slate-300 rounded-xl focus:border-[#14B8A6] focus:ring-4 focus:ring-[#40E0D0]/30 outline-none transition-all font-mono">
+                </div>
+            </div>
+
+            <!-- Auto-Generated Key Preview & Action (Separate Line) -->
+            <div
+                class="bg-slate-50/80 p-5 rounded-xl border border-slate-200 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                <div>
+                    <span class="block text-xs font-semibold text-slate-500 uppercase">{% trans "Truck-Challan Key" %}</span>
+                    <span id="truck_challan_key_preview" class="text-lg font-bold text-[#0047AB] font-mono">---</span>
+                </div>
+
+                <button type="submit"
+                    class="h-12 px-10 bg-[#0047AB] hover:bg-[#003A8C] text-white text-base font-semibold rounded-xl shadow-lg shadow-[#0047AB]/20 transition-all flex items-center justify-center gap-2 cursor-pointer">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4" />
+                    </svg>
+                    <span>{% trans "Save Header" %}</span>
+                </button>
+            </div>
+        </form>
         {% endif %}
     </div>
 
@@ -230,11 +261,14 @@
     <!-- SECTION 2: LINE LEVEL (BUILTY ENTRY)                                   -->
     <!-- ====================================================================== -->
     <div class="bg-white rounded-2xl border border-slate-200/80 shadow-lg shadow-slate-200/50 p-6 sm:p-8">
-        <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between border-b border-slate-100 pb-4 mb-6 gap-3">
+        <div
+            class="flex flex-col sm:flex-row sm:items-center sm:justify-between border-b border-slate-100 pb-4 mb-6 gap-3">
             <div class="flex items-center gap-3">
-                <span class="w-8 h-8 rounded-lg {% if active_header %}bg-[#14B8A6]/10 text-[#0f8b7d]{% else %}bg-slate-100 text-slate-400{% endif %} flex items-center justify-center font-bold text-sm">2</span>
+                <span
+                    class="w-8 h-8 rounded-lg {% if active_header %}bg-[#14B8A6]/10 text-[#0f8b7d]{% else %}bg-slate-100 text-slate-400{% endif %} flex items-center justify-center font-bold text-sm">2</span>
                 <div>
-                    <h3 class="text-base font-bold {% if active_header %}text-slate-900{% else %}text-slate-400{% endif %} uppercase tracking-wide">
+                    <h3
+                        class="text-base font-bold {% if active_header %}text-slate-900{% else %}text-slate-400{% endif %} uppercase tracking-wide">
                         {% trans "Line Level: Builty Entry" %}
                     </h3>
 
@@ -242,317 +276,340 @@
             </div>
 
             {% if active_header %}
-                {% if header_is_full %}
-                <div class="inline-flex items-center gap-2 px-4 py-2 bg-emerald-50 border border-emerald-200 text-emerald-800 rounded-xl text-xs font-bold">
-                    <svg class="w-4 h-4 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
-                    <span>{% trans "Challan Complete" %}</span>
-                </div>
-                {% else %}
-                <button type="button" id="btn-toggle-create-builty" onclick="toggleCreateBuiltyDrawer()"
-                        class="h-11 px-6 bg-[#14B8A6] hover:bg-[#0f8b7d] text-white font-semibold text-sm rounded-xl transition-all shadow-xs flex items-center gap-2">
-                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m8-8H4"/></svg>
-                    <span>{% trans "Create Builty" %}</span>
-                </button>
-                {% endif %}
+            {% if header_is_full %}
+            <div
+                class="inline-flex items-center gap-2 px-4 py-2 bg-emerald-50 border border-emerald-200 text-emerald-800 rounded-xl text-xs font-bold">
+                <svg class="w-4 h-4 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+                </svg>
+                <span>{% trans "Challan Complete" %}</span>
+            </div>
+            {% else %}
+            <button type="button" id="btn-toggle-create-builty" onclick="toggleCreateBuiltyDrawer()"
+                class="h-11 px-6 bg-[#14B8A6] hover:bg-[#0f8b7d] text-white font-semibold text-sm rounded-xl transition-all shadow-xs flex items-center gap-2">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m8-8H4" />
+                </svg>
+                <span>{% trans "Create Builty" %}</span>
+            </button>
+            {% endif %}
             {% endif %}
         </div>
 
         {% if not active_header %}
-            <!-- DISABLED PLACEHOLDER -->
-            <div class="py-10 text-center bg-slate-50 border border-dashed border-slate-300 rounded-2xl">
-                <p class="text-sm font-semibold text-slate-500">{% trans "Save the header to enable builty entry" %}</p>
-            </div>
-            <!-- Hidden container for HTMX balance calculations -->
-            <div class="hidden" aria-hidden="true">
-                {% include "receivables/partials/form1_balance_display.html" with balance=init_balance %}
-            </div>
+        <!-- DISABLED PLACEHOLDER -->
+        <div class="py-10 text-center bg-slate-50 border border-dashed border-slate-300 rounded-2xl">
+            <p class="text-sm font-semibold text-slate-500">{% trans "Save the header to enable builty entry" %}</p>
+        </div>
+        <!-- Hidden container for HTMX balance calculations -->
+        <div class="hidden" aria-hidden="true">
+            {% include "receivables/partials/form1_balance_display.html" with balance=init_balance %}
+        </div>
         {% else %}
 
-            <!-- INLINE COLLAPSIBLE SECTION: CREATE BUILTY -->
-            <div id="create-builty-drawer" style="display:{% if errors.non_field %}block{% else %}none{% endif %}" class="mb-8 p-6 sm:p-8 bg-slate-50/90 rounded-2xl border-2 border-[#14B8A6]/40 transition-all">
-                <div class="flex items-center justify-between pb-4 mb-6 border-b border-slate-200">
-                    <div class="flex items-center gap-2">
-                        <span class="w-2.5 h-2.5 rounded-full bg-[#14B8A6]"></span>
-                        <h4 class="text-base font-bold text-slate-900">
-                            {% trans "New Builty Entry" %} &mdash; <span class="text-[#0047AB] font-mono">{{ active_header.truck_challan_key }}</span>
-                        </h4>
+        <!-- INLINE COLLAPSIBLE SECTION: CREATE BUILTY -->
+        <div id="create-builty-drawer" style="display:{% if errors.non_field %}block{% else %}none{% endif %}"
+            class="mb-8 p-6 sm:p-8 bg-slate-50/90 rounded-2xl border-2 border-[#14B8A6]/40 transition-all">
+            <div class="flex items-center justify-between pb-4 mb-6 border-b border-slate-200">
+                <div class="flex items-center gap-2">
+                    <span class="w-2.5 h-2.5 rounded-full bg-[#14B8A6]"></span>
+                    <h4 class="text-base font-bold text-slate-900">
+                        {% trans "New Builty Entry" %} &mdash; <span class="text-[#0047AB] font-mono">{{ active_header.truck_challan_key }}</span>
+                    </h4>
+                </div>
+                <button type="button" onclick="toggleCreateBuiltyDrawer()" class="text-slate-400 hover:text-slate-600">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                </button>
+            </div>
+
+            {% if errors.non_field %}
+            <div class="mb-6 p-4 rounded-xl bg-rose-50 border border-rose-300 text-rose-900 flex items-start gap-3">
+                <svg class="w-5 h-5 text-rose-600 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor"
+                    viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                <p class="text-sm font-medium">{{ errors.non_field }}</p>
+            </div>
+            {% endif %}
+
+            <form method="post" id="create-builty-form"
+                action="{% url 'receivables:form1_receiving' %}?key={{ active_header.truck_challan_key }}"
+                class="space-y-8">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="save_builty">
+                <input type="hidden" name="truck_challan_key" value="{{ active_header.truck_challan_key }}">
+
+                <!-- Sub-section: Builty Details -->
+                <div class="space-y-5">
+                    <h3
+                        class="text-base font-bold text-[#0047AB] uppercase tracking-wide border-l-4 border-[#14B8A6] pl-3">
+                        {% trans "Builty Details" %}</h3>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-7">
+                        <div>
+                            <label for="id_builty_no" class="block text-sm font-semibold text-slate-800 mb-2">
+                                {% trans "Karachi Builty No." %} <span class="text-rose-500 font-bold">*</span>
+                            </label>
+                            <input type="text" name="builty_no" id="id_builty_no" required
+                                value="{{ form_data.builty_no|default:'' }}" placeholder="e.g. KHI-99201"
+                                class="w-full h-12 px-4 text-lg bg-white border border-slate-300 rounded-xl focus:border-[#14B8A6] focus:ring-4 focus:ring-[#40E0D0]/30 outline-none transition-all font-mono uppercase">
+                        </div>
+
+                        <div>
+                            <label for="id_nags" class="block text-sm font-semibold text-slate-800 mb-2">
+                                {% trans "No. of Nags / Boxes" %}
+                            </label>
+                            <input type="number" min="1" step="1" name="nags" id="id_nags"
+                                value="{{ form_data.nags|default:'' }}" placeholder="{% trans 'Optional' %}"
+                                class="w-full h-12 px-4 text-lg bg-white border border-slate-300 rounded-xl focus:border-[#14B8A6] focus:ring-4 focus:ring-[#40E0D0]/30 outline-none transition-all font-mono">
+                        </div>
+
+                        <div>
+                            <label for="id_customer_builty_no" class="block text-sm font-semibold text-slate-800 mb-2">
+                                {% trans "Customer Builty Ref" %}
+                            </label>
+                            <input type="text" name="customer_builty_no" id="id_customer_builty_no"
+                                value="{{ form_data.customer_builty_no|default:'' }}"
+                                placeholder="{% trans 'Optional' %}"
+                                class="w-full h-12 px-4 text-base bg-white border border-slate-300 rounded-xl focus:border-[#14B8A6] focus:ring-4 focus:ring-[#40E0D0]/30 outline-none transition-all">
+                        </div>
+
+                        <div>
+                            <label for="id_truck_no_karachi" class="block text-sm font-semibold text-slate-800 mb-2">
+                                {% trans "Truck No. as per Karachi Doc" %}
+                            </label>
+                            <input type="text" name="truck_no_karachi" id="id_truck_no_karachi"
+                                value="{{ form_data.truck_no_karachi|default:'' }}"
+                                placeholder="{% trans 'Optional (if different)' %}"
+                                class="w-full h-12 px-4 text-base bg-white border border-slate-300 rounded-xl focus:border-[#14B8A6] focus:ring-4 focus:ring-[#40E0D0]/30 outline-none transition-all font-mono uppercase">
+                        </div>
                     </div>
-                    <button type="button" onclick="toggleCreateBuiltyDrawer()" class="text-slate-400 hover:text-slate-600">
-                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                </div>
+
+                <!-- Sub-section: Customer & Delivery Mode -->
+                <div class="space-y-5 pt-2 border-t border-slate-200">
+                    <h3
+                        class="text-base font-bold text-[#0047AB] uppercase tracking-wide border-l-4 border-[#14B8A6] pl-3">
+                        {% trans "Customer & Delivery" %}</h3>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-7">
+                        <div>
+                            <label for="id_customer_type" class="block text-sm font-semibold text-slate-800 mb-2">
+                                {% trans "Customer Category" %} <span class="text-rose-500 font-bold">*</span>
+                            </label>
+                            <select name="customer_type" id="id_customer_type" required
+                                hx-get="{% url 'receivables:htmx_form1_customer_details' %}"
+                                hx-target="#customer-fields-container" hx-swap="outerHTML"
+                                hx-include="[name='delivery_mode'], [name='customer_id']"
+                                class="w-full h-12 px-4 text-base bg-white border border-slate-300 rounded-xl focus:border-[#14B8A6] focus:ring-4 focus:ring-[#40E0D0]/30 outline-none transition-all">
+                                <option value="Regular" {% if init_type != 'Walk-in' %}selected{% endif %}>{% trans "Regular Customer" %}</option>
+                                <option value="Walk-in" {% if form_data.customer_type == 'Walk-in' %}selected{% endif %}>
+                                    {% trans "Walk-in Customer" %}</option>
+                            </select>
+                        </div>
+
+                        <div>
+                            <label for="id_delivery_mode" class="block text-sm font-semibold text-slate-800 mb-2">
+                                {% trans "Delivery Mode" %} <span class="text-rose-500 font-bold">*</span>
+                            </label>
+                            <select name="delivery_mode" id="id_delivery_mode" required
+                                hx-get="{% url 'receivables:htmx_form1_customer_details' %}"
+                                hx-target="#customer-fields-container" hx-swap="outerHTML"
+                                hx-include="[name='customer_type'], [name='customer_id']"
+                                class="w-full h-12 px-4 text-base bg-white border border-slate-300 rounded-xl focus:border-[#14B8A6] focus:ring-4 focus:ring-[#40E0D0]/30 outline-none transition-all">
+                                {% for val, label in delivery_modes %}
+                                <option value="{{ val }}" {% if form_data.delivery_mode == val %}selected{% endif %}>{{ label }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                    </div>
+
+                    <!-- HTMX Dynamic Customer Fields (with Searchable Existing Customer Selector) -->
+                    {% include "receivables/partials/form1_customer_fields.html" with customer_type=init_type customer=init_customer customers=customers delivery_mode=init_mode form_data=form_data %}
+                </div>
+
+                <!-- Sub-section: Charges & Balance -->
+                <div class="space-y-5 pt-2 border-t border-slate-200">
+                    <h3
+                        class="text-base font-bold text-[#0047AB] uppercase tracking-wide border-l-4 border-[#14B8A6] pl-3">
+                        {% trans "Charges & Balance" %}</h3>
+                    <div id="charges-grid" class="grid grid-cols-1 sm:grid-cols-2 gap-7"
+                        hx-get="{% url 'receivables:htmx_form1_balance_calc' %}" hx-trigger="input delay:300ms, change"
+                        hx-include="#charges-grid input" hx-target="#balance-display-container" hx-swap="outerHTML">
+                        <div>
+                            <label for="id_total_amount" class="block text-sm font-semibold text-slate-800 mb-2">
+                                {% trans "Total Freight (Rs.)" %} <span class="text-rose-500 font-bold">*</span>
+                            </label>
+                            <input type="number" step="0.01" min="0" name="total_amount" id="id_total_amount" required
+                                value="{{ form_data.total_amount|default:'' }}"
+                                class="w-full h-12 px-4 text-lg font-bold bg-white border border-slate-300 rounded-xl focus:border-[#14B8A6] focus:ring-4 focus:ring-[#40E0D0]/30 outline-none transition-all font-mono">
+                        </div>
+                        <div>
+                            <label for="id_advance_received" class="block text-sm font-semibold text-slate-800 mb-2">
+                                {% trans "Advance Received (Rs.)" %}
+                            </label>
+                            <input type="number" step="0.01" min="0" placeholder="" name="advance_received"
+                                id="id_advance_received" value="{{ form_data.advance_received|default:'' }}"
+                                class="w-full h-12 px-4 text-lg font-bold bg-white border border-slate-300 rounded-xl focus:border-[#14B8A6] focus:ring-4 focus:ring-[#40E0D0]/30 outline-none transition-all font-mono">
+                        </div>
+                        <div>
+                            <label for="id_loading_charges" class="block text-sm font-semibold text-slate-800 mb-2">
+                                {% trans "Loading Charges (Rs.)" %}
+                            </label>
+                            <input type="number" step="0.01" min="0" name="loading_charges" id="id_loading_charges"
+                                value="{{ form_data.loading_charges|default:'' }}"
+                                class="w-full h-12 px-4 text-lg font-bold bg-white border border-slate-300 rounded-xl focus:border-[#14B8A6] focus:ring-4 focus:ring-[#40E0D0]/30 outline-none transition-all font-mono">
+                        </div>
+                        <div>
+                            <label for="id_godam_charges" class="block text-sm font-semibold text-slate-800 mb-2">
+                                {% trans "Godam Charges (Rs.)" %}
+                            </label>
+                            <input type="number" step="0.01" min="0" name="godam_charges" id="id_godam_charges"
+                                value="{{ form_data.godam_charges|default:'' }}"
+                                class="w-full h-12 px-4 text-lg font-bold bg-white border border-slate-300 rounded-xl focus:border-[#14B8A6] focus:ring-4 focus:ring-[#40E0D0]/30 outline-none transition-all font-mono">
+                        </div>
+                    </div>
+
+                    <!-- Balance Highlight Card -->
+                    {% include "receivables/partials/form1_balance_display.html" with balance=init_balance %}
+                </div>
+
+                <!-- Sub-section: Goods Received Status & Remarks -->
+                <div class="space-y-5 pt-2 border-t border-slate-200">
+                    <h3
+                        class="text-base font-bold text-[#0047AB] uppercase tracking-wide border-l-4 border-[#14B8A6] pl-3">
+                        {% trans "Condition & Remarks" %}</h3>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-7">
+                        <div>
+                            <label for="id_goods_condition" class="block text-sm font-semibold text-slate-800 mb-2">
+                                {% trans "Goods Received Status" %} <span class="text-rose-500 font-bold">*</span>
+                            </label>
+                            <select name="goods_condition" id="id_goods_condition" required
+                                class="w-full h-12 px-4 text-base bg-white border border-slate-300 rounded-xl focus:border-[#14B8A6] focus:ring-4 focus:ring-[#40E0D0]/30 outline-none transition-all font-semibold">
+                                {% for val, label in goods_conditions %}
+                                <option value="{{ val }}" {% if form_data.goods_condition == val %}selected{% elif not form_data.goods_condition and val == 'Received OK' %}selected{% endif %}>
+                                    {{ label }}
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+
+                        <div>
+                            <label for="id_remarks" class="block text-sm font-semibold text-slate-800 mb-2">
+                                {% trans "Remarks / Notes" %}
+                            </label>
+                            <input type="text" name="remarks" id="id_remarks" value="{{ form_data.remarks|default:'' }}"
+                                placeholder="{% trans 'Optional notes' %}"
+                                class="w-full h-12 px-4 text-base bg-white border border-slate-300 rounded-xl focus:border-[#14B8A6] focus:ring-4 focus:ring-[#40E0D0]/30 outline-none transition-all">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Submit Builty Button -->
+                <div class="pt-4 border-t border-slate-200 flex items-center justify-end gap-3">
+                    <button type="button" onclick="toggleCreateBuiltyDrawer()"
+                        class="h-12 px-6 bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 font-semibold text-base rounded-xl cursor-pointer">
+                        {% trans "Cancel" %}
+                    </button>
+                    <button type="submit"
+                        class="h-12 px-10 bg-[#0047AB] hover:bg-[#003A8C] text-white font-semibold text-base rounded-xl shadow-lg shadow-[#0047AB]/20 transition-all flex items-center gap-2 cursor-pointer">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5"
+                                d="M5 13l4 4L19 7" />
+                        </svg>
+                        <span>{% trans "Save Builty to Challan" %}</span>
                     </button>
                 </div>
+            </form>
+        </div>
 
-                {% if errors.non_field %}
-                <div class="mb-6 p-4 rounded-xl bg-rose-50 border border-rose-300 text-rose-900 flex items-start gap-3">
-                    <svg class="w-5 h-5 text-rose-600 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-                    <p class="text-sm font-medium">{{ errors.non_field }}</p>
-                </div>
-                {% endif %}
-
-                <form method="post" id="create-builty-form" action="{% url 'receivables:form1_receiving' %}?key={{ active_header.truck_challan_key }}" class="space-y-8">
-                    {% csrf_token %}
-                    <input type="hidden" name="action" value="save_builty">
-                    <input type="hidden" name="truck_challan_key" value="{{ active_header.truck_challan_key }}">
-
-                    <!-- Sub-section: Builty Details -->
-                    <div class="space-y-5">
-                        <h3 class="text-base font-bold text-[#0047AB] uppercase tracking-wide border-l-4 border-[#14B8A6] pl-3">{% trans "Builty Details" %}</h3>
-                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-7">
-                            <div>
-                                <label for="id_builty_no" class="block text-sm font-semibold text-slate-800 mb-2">
-                                    {% trans "Karachi Builty No." %} <span class="text-rose-500 font-bold">*</span>
-                                </label>
-                                <input type="text" name="builty_no" id="id_builty_no" required
-                                       value="{{ form_data.builty_no|default:'' }}"
-                                       placeholder="e.g. KHI-99201"
-                                       class="w-full h-12 px-4 text-lg bg-white border border-slate-300 rounded-xl focus:border-[#14B8A6] focus:ring-4 focus:ring-[#40E0D0]/30 outline-none transition-all font-mono uppercase">
-                            </div>
-
-                            <div>
-                                <label for="id_nags" class="block text-sm font-semibold text-slate-800 mb-2">
-                                    {% trans "No. of Nags / Boxes" %}
-                                </label>
-                                <input type="number" min="1" step="1" name="nags" id="id_nags"
-                                       value="{{ form_data.nags|default:'' }}"
-                                       placeholder="{% trans 'Optional' %}"
-                                       class="w-full h-12 px-4 text-lg bg-white border border-slate-300 rounded-xl focus:border-[#14B8A6] focus:ring-4 focus:ring-[#40E0D0]/30 outline-none transition-all font-mono">
-                            </div>
-
-                            <div>
-                                <label for="id_customer_builty_no" class="block text-sm font-semibold text-slate-800 mb-2">
-                                    {% trans "Customer Builty Ref" %}
-                                </label>
-                                <input type="text" name="customer_builty_no" id="id_customer_builty_no"
-                                       value="{{ form_data.customer_builty_no|default:'' }}"
-                                       placeholder="{% trans 'Optional' %}"
-                                       class="w-full h-12 px-4 text-base bg-white border border-slate-300 rounded-xl focus:border-[#14B8A6] focus:ring-4 focus:ring-[#40E0D0]/30 outline-none transition-all">
-                            </div>
-
-                            <div>
-                                <label for="id_truck_no_karachi" class="block text-sm font-semibold text-slate-800 mb-2">
-                                    {% trans "Truck No. as per Karachi Doc" %}
-                                </label>
-                                <input type="text" name="truck_no_karachi" id="id_truck_no_karachi"
-                                       value="{{ form_data.truck_no_karachi|default:'' }}"
-                                       placeholder="{% trans 'Optional (if different)' %}"
-                                       class="w-full h-12 px-4 text-base bg-white border border-slate-300 rounded-xl focus:border-[#14B8A6] focus:ring-4 focus:ring-[#40E0D0]/30 outline-none transition-all font-mono uppercase">
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Sub-section: Customer & Delivery Mode -->
-                    <div class="space-y-5 pt-2 border-t border-slate-200">
-                        <h3 class="text-base font-bold text-[#0047AB] uppercase tracking-wide border-l-4 border-[#14B8A6] pl-3">{% trans "Customer & Delivery" %}</h3>
-                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-7">
-                            <div>
-                                <label for="id_customer_type" class="block text-sm font-semibold text-slate-800 mb-2">
-                                    {% trans "Customer Category" %} <span class="text-rose-500 font-bold">*</span>
-                                </label>
-                                <select name="customer_type" id="id_customer_type" required
-                                        hx-get="{% url 'receivables:htmx_form1_customer_details' %}"
-                                        hx-target="#customer-fields-container"
-                                        hx-swap="outerHTML"
-                                        hx-include="[name='delivery_mode'], [name='customer_id']"
-                                        class="w-full h-12 px-4 text-base bg-white border border-slate-300 rounded-xl focus:border-[#14B8A6] focus:ring-4 focus:ring-[#40E0D0]/30 outline-none transition-all">
-                                    <option value="Regular" {% if init_type != 'Walk-in' %}selected{% endif %}>{% trans "Regular Customer" %}</option>
-                                    <option value="Walk-in" {% if form_data.customer_type == 'Walk-in' %}selected{% endif %}>{% trans "Walk-in Customer" %}</option>
-                                </select>
-                            </div>
-
-                            <div>
-                                <label for="id_delivery_mode" class="block text-sm font-semibold text-slate-800 mb-2">
-                                    {% trans "Delivery Mode" %} <span class="text-rose-500 font-bold">*</span>
-                                </label>
-                                <select name="delivery_mode" id="id_delivery_mode" required
-                                        hx-get="{% url 'receivables:htmx_form1_customer_details' %}"
-                                        hx-target="#customer-fields-container"
-                                        hx-swap="outerHTML"
-                                        hx-include="[name='customer_type'], [name='customer_id']"
-                                        class="w-full h-12 px-4 text-base bg-white border border-slate-300 rounded-xl focus:border-[#14B8A6] focus:ring-4 focus:ring-[#40E0D0]/30 outline-none transition-all">
-                                    {% for val, label in delivery_modes %}
-                                    <option value="{{ val }}" {% if form_data.delivery_mode == val %}selected{% endif %}>{{ label }}</option>
-                                    {% endfor %}
-                                </select>
-                            </div>
-                        </div>
-
-                        <!-- HTMX Dynamic Customer Fields (with Searchable Existing Customer Selector) -->
-                        {% include "receivables/partials/form1_customer_fields.html" with customer_type=init_type customer=init_customer customers=customers delivery_mode=init_mode form_data=form_data %}
-                    </div>
-
-                    <!-- Sub-section: Charges & Balance -->
-                    <div class="space-y-5 pt-2 border-t border-slate-200">
-                        <h3 class="text-base font-bold text-[#0047AB] uppercase tracking-wide border-l-4 border-[#14B8A6] pl-3">{% trans "Charges & Balance" %}</h3>
-                        <div id="charges-grid" class="grid grid-cols-1 sm:grid-cols-2 gap-7"
-                             hx-get="{% url 'receivables:htmx_form1_balance_calc' %}"
-                             hx-trigger="input delay:300ms, change"
-                             hx-include="#charges-grid input"
-                             hx-target="#balance-display-container"
-                             hx-swap="outerHTML">
-                            <div>
-                                <label for="id_total_amount" class="block text-sm font-semibold text-slate-800 mb-2">
-                                    {% trans "Total Freight (Rs.)" %} <span class="text-rose-500 font-bold">*</span>
-                                </label>
-                                <input type="number" step="0.01" min="0" name="total_amount" id="id_total_amount" required
-                                       value="{{ form_data.total_amount|default:'' }}"
-                                       class="w-full h-12 px-4 text-lg font-bold bg-white border border-slate-300 rounded-xl focus:border-[#14B8A6] focus:ring-4 focus:ring-[#40E0D0]/30 outline-none transition-all font-mono">
-                            </div>
-                            <div>
-                                <label for="id_advance_received" class="block text-sm font-semibold text-slate-800 mb-2">
-                                    {% trans "Advance Received (Rs.)" %}
-                                </label>
-                                <input type="number" step="0.01" min="0" placeholder="" name="advance_received" id="id_advance_received"
-                                       value="{{ form_data.advance_received|default:'' }}"
-                                       class="w-full h-12 px-4 text-lg font-bold bg-white border border-slate-300 rounded-xl focus:border-[#14B8A6] focus:ring-4 focus:ring-[#40E0D0]/30 outline-none transition-all font-mono">
-                            </div>
-                            <div>
-                                <label for="id_loading_charges" class="block text-sm font-semibold text-slate-800 mb-2">
-                                    {% trans "Loading Charges (Rs.)" %}
-                                </label>
-                                <input type="number" step="0.01" min="0" name="loading_charges" id="id_loading_charges"
-                                       value="{{ form_data.loading_charges|default:'' }}"
-                                       class="w-full h-12 px-4 text-lg font-bold bg-white border border-slate-300 rounded-xl focus:border-[#14B8A6] focus:ring-4 focus:ring-[#40E0D0]/30 outline-none transition-all font-mono">
-                            </div>
-                            <div>
-                                <label for="id_godam_charges" class="block text-sm font-semibold text-slate-800 mb-2">
-                                    {% trans "Godam Charges (Rs.)" %}
-                                </label>
-                                <input type="number" step="0.01" min="0" name="godam_charges" id="id_godam_charges"
-                                       value="{{ form_data.godam_charges|default:'' }}"
-                                       class="w-full h-12 px-4 text-lg font-bold bg-white border border-slate-300 rounded-xl focus:border-[#14B8A6] focus:ring-4 focus:ring-[#40E0D0]/30 outline-none transition-all font-mono">
-                            </div>
-                        </div>
-
-                        <!-- Balance Highlight Card -->
-                        {% include "receivables/partials/form1_balance_display.html" with balance=init_balance %}
-                    </div>
-
-                    <!-- Sub-section: Goods Received Status & Remarks -->
-                    <div class="space-y-5 pt-2 border-t border-slate-200">
-                        <h3 class="text-base font-bold text-[#0047AB] uppercase tracking-wide border-l-4 border-[#14B8A6] pl-3">{% trans "Condition & Remarks" %}</h3>
-                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-7">
-                            <div>
-                                <label for="id_goods_condition" class="block text-sm font-semibold text-slate-800 mb-2">
-                                    {% trans "Goods Received Status" %} <span class="text-rose-500 font-bold">*</span>
-                                </label>
-                                <select name="goods_condition" id="id_goods_condition" required
-                                        class="w-full h-12 px-4 text-base bg-white border border-slate-300 rounded-xl focus:border-[#14B8A6] focus:ring-4 focus:ring-[#40E0D0]/30 outline-none transition-all font-semibold">
-                                    {% for val, label in goods_conditions %}
-                                    <option value="{{ val }}" {% if form_data.goods_condition == val %}selected{% elif not form_data.goods_condition and val == 'Received OK' %}selected{% endif %}>
-                                        {{ label }}
-                                    </option>
-                                    {% endfor %}
-                                </select>
-                            </div>
-
-                            <div>
-                                <label for="id_remarks" class="block text-sm font-semibold text-slate-800 mb-2">
-                                    {% trans "Remarks / Notes" %}
-                                </label>
-                                <input type="text" name="remarks" id="id_remarks"
-                                       value="{{ form_data.remarks|default:'' }}"
-                                       placeholder="{% trans 'Optional notes' %}"
-                                       class="w-full h-12 px-4 text-base bg-white border border-slate-300 rounded-xl focus:border-[#14B8A6] focus:ring-4 focus:ring-[#40E0D0]/30 outline-none transition-all">
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Submit Builty Button -->
-                    <div class="pt-4 border-t border-slate-200 flex items-center justify-end gap-3">
-                        <button type="button" onclick="toggleCreateBuiltyDrawer()" class="h-12 px-6 bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 font-semibold text-base rounded-xl cursor-pointer">
-                            {% trans "Cancel" %}
-                        </button>
-                        <button type="submit" class="h-12 px-10 bg-[#0047AB] hover:bg-[#003A8C] text-white font-semibold text-base rounded-xl shadow-lg shadow-[#0047AB]/20 transition-all flex items-center gap-2 cursor-pointer">
-                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg>
-                            <span>{% trans "Save Builty to Challan" %}</span>
-                        </button>
-                    </div>
-                </form>
+        <!-- TABLE OF BUILTIES ENTERED UNDER THIS TRUCK-CHALLAN -->
+        <div class="border border-slate-200 rounded-xl overflow-hidden">
+            <div class="bg-slate-50 px-4 py-3 border-b border-slate-200 flex items-center justify-between">
+                <span class="text-xs font-bold uppercase tracking-wider text-slate-700">
+                    {% trans "Builties Entered Under Key:" %} <span class="text-[#0047AB] font-mono">{{ active_header.truck_challan_key }}</span>
+                </span>
+                <span class="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-blue-100 text-[#0047AB]">
+                    {{ active_header.builties_count }} / {{ active_header.no_of_builties }}
+                </span>
             </div>
 
-            <!-- TABLE OF BUILTIES ENTERED UNDER THIS TRUCK-CHALLAN -->
-            <div class="border border-slate-200 rounded-xl overflow-hidden">
-                <div class="bg-slate-50 px-4 py-3 border-b border-slate-200 flex items-center justify-between">
-                    <span class="text-xs font-bold uppercase tracking-wider text-slate-700">
-                        {% trans "Builties Entered Under Key:" %} <span class="text-[#0047AB] font-mono">{{ active_header.truck_challan_key }}</span>
-                    </span>
-                    <span class="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-blue-100 text-[#0047AB]">
-                        {{ active_header.builties_count }} / {{ active_header.no_of_builties }}
-                    </span>
-                </div>
-
-                <div class="overflow-x-auto">
-                    <table class="w-full text-left text-sm text-slate-600 whitespace-nowrap">
-                        <thead class="bg-white text-xs uppercase font-semibold text-slate-500 border-b border-slate-200">
-                            <tr>
-                                <th class="px-4 py-3">{% trans "Ref No." %}</th>
-                                <th class="px-4 py-3">{% trans "Builty No." %}</th>
-                                <th class="px-4 py-3">{% trans "Karachi Truck Ref" %}</th>
-                                <th class="px-4 py-3">{% trans "Nags" %}</th>
-                                <th class="px-4 py-3">{% trans "Customer" %}</th>
-                                <th class="px-4 py-3 text-right">{% trans "Total Freight" %}</th>
-                                <th class="px-4 py-3 text-right">{% trans "Balance" %}</th>
-                                <th class="px-4 py-3 text-center">{% trans "Goods Condition" %}</th>
-                                <th class="px-4 py-3 text-center">{% trans "Action" %}</th>
-                            </tr>
-                        </thead>
-                        <tbody class="divide-y divide-slate-100 font-mono">
-                            {% for b in header_builties %}
-                            <tr class="hover:bg-slate-50/70 transition-colors">
-                                <td class="px-4 py-3 font-bold text-[#0047AB]">{{ b.form_no }}</td>
-                                <td class="px-4 py-3 font-bold text-slate-900">{{ b.builty_no }}</td>
-                                <td class="px-4 py-3 text-xs text-slate-600">{{ b.truck_no_karachi|default:"-" }}</td>
-                                <td class="px-4 py-3 font-bold text-slate-800">{{ b.nags|default:"-" }}</td>
-                                <td class="px-4 py-3 font-sans font-medium text-slate-900">{{ b.customer_name }}</td>
-                                <td class="px-4 py-3 text-right font-sans">Rs. {{ b.total_amount|floatformat:2|intcomma }}</td>
-                                <td class="px-4 py-3 text-right font-sans font-bold {% if b.receivable_amount > 0 %}text-rose-700{% else %}text-emerald-700{% endif %}">
-                                    Rs. {{ b.receivable_amount|floatformat:2|intcomma }}
-                                </td>
-                                <td class="px-4 py-3 text-center font-sans">
-                                    {% if b.goods_condition == 'In Transit' %}
-                                    <span class="inline-flex px-2.5 py-0.5 rounded-full text-xs font-bold bg-amber-100 text-amber-800 border border-amber-300 animate-pulse">
-                                        In Transit
-                                    </span>
-                                    {% elif b.goods_condition == 'Received OK' %}
-                                    <span class="inline-flex px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
-                                        Received OK
-                                    </span>
-                                    {% else %}
-                                    <span class="inline-flex px-2.5 py-0.5 rounded-full text-xs font-bold bg-rose-50 text-rose-700 border border-rose-200">
-                                        {{ b.goods_condition }}
-                                    </span>
-                                    {% endif %}
-                                </td>
-                                <td class="px-4 py-3 text-center font-sans">
-                                    {% if b.goods_condition == 'In Transit' %}
-                                    <button type="button"
-                                            onclick="openArrivalModal(this)"
-                                            data-form-no="{{ b.form_no }}"
-                                            data-builty-no="{{ b.builty_no }}"
-                                            data-customer="{{ b.customer_name }}"
-                                            data-nags="{{ b.nags|default:"-" }}"
-                                            data-karachi-truck="{{ b.truck_no_karachi|default:'-' }}"
-                                            data-freight="Rs. {{ b.total_amount|floatformat:2|intcomma }}"
-                                            data-balance="Rs. {{ b.receivable_amount|floatformat:2|intcomma }}"
-                                            class="px-3 py-1.5 text-xs font-bold bg-[#0047AB] hover:bg-[#003A8C] text-white rounded-lg shadow-xs transition-all cursor-pointer">
-                                        {% trans "Update Arrival" %}
-                                    </button>
-                                    {% else %}
-                                    <span class="text-xs text-slate-400 italic">{% trans "Locked" %}</span>
-                                    {% endif %}
-                                </td>
-                            </tr>
-                            {% empty %}
-                            <tr>
-                                <td colspan="9" class="px-4 py-8 text-center text-slate-400 font-sans">
-                                    <p class="font-medium">{% trans "No Builties entered yet under this Challan. Click '+ Create Builty' above." %}</p>
-                                </td>
-                            </tr>
-                            {% endfor %}
-                        </tbody>
-                    </table>
-                </div>
+            <div class="overflow-x-auto">
+                <table class="w-full text-left text-sm text-slate-600 whitespace-nowrap">
+                    <thead class="bg-white text-xs uppercase font-semibold text-slate-500 border-b border-slate-200">
+                        <tr>
+                            <th class="px-4 py-3">{% trans "Ref No." %}</th>
+                            <th class="px-4 py-3">{% trans "Builty No." %}</th>
+                            <th class="px-4 py-3">{% trans "Karachi Truck Ref" %}</th>
+                            <th class="px-4 py-3">{% trans "Nags" %}</th>
+                            <th class="px-4 py-3">{% trans "Customer" %}</th>
+                            <th class="px-4 py-3 text-right">{% trans "Total Freight" %}</th>
+                            <th class="px-4 py-3 text-right">{% trans "Balance" %}</th>
+                            <th class="px-4 py-3 text-center">{% trans "Goods Condition" %}</th>
+                            <th class="px-4 py-3 text-center">{% trans "Action" %}</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-slate-100 font-mono">
+                        {% for b in header_builties %}
+                        <tr class="hover:bg-slate-50/70 transition-colors">
+                            <td class="px-4 py-3 font-bold text-[#0047AB]">{{ b.form_no }}</td>
+                            <td class="px-4 py-3 font-bold text-slate-900">{{ b.builty_no }}</td>
+                            <td class="px-4 py-3 text-xs text-slate-600">{{ b.truck_no_karachi|default:"-" }}</td>
+                            <td class="px-4 py-3 font-bold text-slate-800">{{ b.nags|default:"-" }}</td>
+                            <td class="px-4 py-3 font-sans font-medium text-slate-900">{{ b.customer_name }}</td>
+                            <td class="px-4 py-3 text-right font-sans">Rs. {{ b.total_amount|floatformat:2|intcomma }}
+                            </td>
+                            <td
+                                class="px-4 py-3 text-right font-sans font-bold {% if b.receivable_amount > 0 %}text-rose-700{% else %}text-emerald-700{% endif %}">
+                                Rs. {{ b.receivable_amount|floatformat:2|intcomma }}
+                            </td>
+                            <td class="px-4 py-3 text-center font-sans">
+                                {% if b.goods_condition == 'In Transit' %}
+                                <span
+                                    class="inline-flex px-2.5 py-0.5 rounded-full text-xs font-bold bg-amber-100 text-amber-800 border border-amber-300 animate-pulse">
+                                    In Transit
+                                </span>
+                                {% elif b.goods_condition == 'Received OK' %}
+                                <span
+                                    class="inline-flex px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                                    Received OK
+                                </span>
+                                {% else %}
+                                <span
+                                    class="inline-flex px-2.5 py-0.5 rounded-full text-xs font-bold bg-rose-50 text-rose-700 border border-rose-200">
+                                    {{ b.goods_condition }}
+                                </span>
+                                {% endif %}
+                            </td>
+                            <td class="px-4 py-3 text-center font-sans">
+                                {% if b.goods_condition == 'In Transit' %}
+                                <button type="button" onclick="openArrivalModal(this)" data-form-no="{{ b.form_no }}"
+                                    data-builty-no="{{ b.builty_no }}" data-customer="{{ b.customer_name }}"
+                                    data-nags="{{ b.nags|default:" -" }}"
+                                    data-karachi-truck="{{ b.truck_no_karachi|default:'-' }}"
+                                    data-freight="Rs. {{ b.total_amount|floatformat:2|intcomma }}"
+                                    data-balance="Rs. {{ b.receivable_amount|floatformat:2|intcomma }}"
+                                    class="px-3 py-1.5 text-xs font-bold bg-[#0047AB] hover:bg-[#003A8C] text-white rounded-lg shadow-xs transition-all cursor-pointer">
+                                    {% trans "Update Arrival" %}
+                                </button>
+                                {% else %}
+                                <span class="text-xs text-slate-400 italic">{% trans "Locked" %}</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="9" class="px-4 py-8 text-center text-slate-400 font-sans">
+                                <p class="font-medium">{% trans "No Builties entered yet under this Challan. Click '+ Create Builty' above." %}</p>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
             </div>
+        </div>
 
         {% endif %}
     </div>
@@ -564,37 +621,47 @@
     <div class="bg-white rounded-2xl border border-slate-200/80 shadow-lg shadow-slate-200/50 overflow-hidden">
         <div class="px-6 py-5 border-b border-slate-200 space-y-4">
             <div class="flex items-center gap-3">
-                <span class="w-8 h-8 rounded-lg bg-slate-100 text-slate-700 flex items-center justify-center font-bold text-sm">3</span>
-                <h3 class="text-base font-bold text-slate-900">{% trans "Data Search Grid (All Inbound Builties)" %}</h3>
+                <span
+                    class="w-8 h-8 rounded-lg bg-slate-100 text-slate-700 flex items-center justify-center font-bold text-sm">3</span>
+                <h3 class="text-base font-bold text-slate-900">{% trans "Data Search Grid (All Inbound Builties)" %}
+                </h3>
                 <span class="text-xs font-semibold px-2.5 py-1 bg-slate-100 text-slate-600 rounded-xl">{{ total_builties_count }}</span>
             </div>
 
-            <form method="get" action="{% url 'receivables:form1_receiving' %}" style="display:flex;flex-wrap:wrap;align-items:center;gap:12px">
+            <form method="get" action="{% url 'receivables:form1_receiving' %}"
+                style="display:flex;flex-wrap:wrap;align-items:center;gap:12px">
                 {% if active_key %}<input type="hidden" name="key" value="{{ active_key }}">{% endif %}
-                <input type="text" name="q" value="{{ query }}" placeholder="{% trans 'Search Key, Builty, Customer...' %}"
-                       style="flex:2 1 200px;min-width:180px"
-                       class="h-11 px-3 text-sm rounded-xl border border-slate-300 focus:border-[#14B8A6] outline-none">
-                <select name="challan_status" style="flex:1 1 140px;min-width:130px" class="h-11 px-3 text-sm rounded-xl border border-slate-300 focus:border-[#14B8A6] outline-none">
+                <input type="text" name="q" value="{{ query }}"
+                    placeholder="{% trans 'Search Key, Builty, Customer...' %}" style="flex:2 1 200px;min-width:180px"
+                    class="h-11 px-3 text-sm rounded-xl border border-slate-300 focus:border-[#14B8A6] outline-none">
+                <select name="challan_status" style="flex:1 1 140px;min-width:130px"
+                    class="h-11 px-3 text-sm rounded-xl border border-slate-300 focus:border-[#14B8A6] outline-none">
                     <option value="">{% trans "Challan Status" %}</option>
                     {% for val, label in truck_challan_statuses %}
-                    <option value="{{ val }}" {% if challan_status_filter == val %}selected{% endif %}>{{ label }}</option>
+                    <option value="{{ val }}" {% if challan_status_filter == val %}selected{% endif %}>{{ label }}
+                    </option>
                     {% endfor %}
                 </select>
-                <select name="status" style="flex:1 1 140px;min-width:130px" class="h-11 px-3 text-sm rounded-xl border border-slate-300 focus:border-[#14B8A6] outline-none">
+                <select name="status" style="flex:1 1 140px;min-width:130px"
+                    class="h-11 px-3 text-sm rounded-xl border border-slate-300 focus:border-[#14B8A6] outline-none">
                     <option value="">{% trans "Builty Status" %}</option>
                     {% for val, label in status_choices %}
                     <option value="{{ val }}" {% if status_filter == val %}selected{% endif %}>{{ label }}</option>
                     {% endfor %}
                 </select>
-                <select name="delivery_status" style="flex:1 1 140px;min-width:130px" class="h-11 px-3 text-sm rounded-xl border border-slate-300 focus:border-[#14B8A6] outline-none">
+                <select name="delivery_status" style="flex:1 1 140px;min-width:130px"
+                    class="h-11 px-3 text-sm rounded-xl border border-slate-300 focus:border-[#14B8A6] outline-none">
                     <option value="">{% trans "Delivery Status" %}</option>
                     {% for val, label in delivery_statuses %}
                     <option value="{{ val }}" {% if delivery_filter == val %}selected{% endif %}>{{ label }}</option>
                     {% endfor %}
                 </select>
-                <button type="submit" style="flex:0 0 auto" class="h-11 px-6 bg-[#0047AB] hover:bg-[#003A8C] text-white text-sm font-semibold rounded-xl transition-all cursor-pointer">{% trans "Search" %}</button>
+                <button type="submit" style="flex:0 0 auto"
+                    class="h-11 px-6 bg-[#0047AB] hover:bg-[#003A8C] text-white text-sm font-semibold rounded-xl transition-all cursor-pointer">{% trans "Search" %}</button>
                 {% if query or status_filter or delivery_filter or challan_status_filter %}
-                <a href="{% url 'receivables:form1_receiving' %}{% if active_key %}?key={{ active_key }}{% endif %}" style="flex:0 0 auto" class="h-11 px-5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-sm font-semibold rounded-xl flex items-center">{% trans "Clear" %}</a>
+                <a href="{% url 'receivables:form1_receiving' %}{% if active_key %}?key={{ active_key }}{% endif %}"
+                    style="flex:0 0 auto"
+                    class="h-11 px-5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-sm font-semibold rounded-xl flex items-center">{% trans "Clear" %}</a>
                 {% endif %}
             </form>
         </div>
@@ -624,12 +691,13 @@
                     <tr class="hover:bg-slate-50/80 transition-colors">
                         <td class="px-5 py-3 font-bold text-[#0047AB]">{{ b.form_no }}</td>
                         <td class="px-5 py-3 text-slate-700 font-sans whitespace-nowrap">{{ b.received_date|date:"d M Y" }}</td>
-                        
+
                         <!-- Section 6: Truck-Challan Key column -->
                         <td class="px-5 py-3 font-bold whitespace-nowrap">
                             {% if b.truck_challan %}
                             <a href="{% url 'receivables:form1_receiving' %}?key={{ b.truck_challan.truck_challan_key }}"
-                               class="text-[#0047AB] hover:underline" title="{% trans 'Click to open this Challan document' %}">
+                                class="text-[#0047AB] hover:underline"
+                                title="{% trans 'Click to open this Challan document' %}">
                                 {{ b.truck_challan.truck_challan_key }}
                             </a>
                             {% else %}
@@ -640,15 +708,17 @@
                         <!-- Section 6: Challan Status column -->
                         <td class="px-5 py-3 text-center font-sans whitespace-nowrap">
                             {% if b.truck_challan %}
-                                {% if b.truck_challan.status == 'Complete' %}
-                                <span class="inline-flex px-2.5 py-0.5 rounded-full text-xs font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
-                                    {% trans "Complete" %}
-                                </span>
-                                {% else %}
-                                <span class="inline-flex px-2.5 py-0.5 rounded-full text-xs font-bold bg-amber-50 text-amber-700 border border-amber-200">
-                                    {% trans "Pending" %}
-                                </span>
-                                {% endif %}
+                            {% if b.truck_challan.status == 'Complete' %}
+                            <span
+                                class="inline-flex px-2.5 py-0.5 rounded-full text-xs font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                                {% trans "Complete" %}
+                            </span>
+                            {% else %}
+                            <span
+                                class="inline-flex px-2.5 py-0.5 rounded-full text-xs font-bold bg-amber-50 text-amber-700 border border-amber-200">
+                                {% trans "Pending" %}
+                            </span>
+                            {% endif %}
                             {% else %}
                             <span class="text-slate-400 text-xs">-</span>
                             {% endif %}
@@ -656,23 +726,28 @@
 
                         <td class="px-5 py-3 font-bold text-slate-900 whitespace-nowrap">{{ b.builty_no }}</td>
                         <td class="px-5 py-3 font-bold text-slate-800 text-center">{{ b.nags|default:"-" }}</td>
-                        <td class="px-5 py-3 font-sans font-bold text-slate-900 whitespace-nowrap">{{ b.customer_name }}</td>
+                        <td class="px-5 py-3 font-sans font-bold text-slate-900 whitespace-nowrap">{{ b.customer_name }}
+                        </td>
                         <td class="px-5 py-3 text-right font-sans whitespace-nowrap">{{ b.total_amount|floatformat:2|intcomma }}</td>
                         <td class="px-5 py-3 text-right font-sans whitespace-nowrap text-slate-600">{{ b.advance_received|floatformat:2|intcomma }}</td>
-                        <td class="px-5 py-3 text-right font-sans whitespace-nowrap font-bold {% if b.receivable_amount > 0 %}text-rose-700{% else %}text-emerald-700{% endif %}">
+                        <td
+                            class="px-5 py-3 text-right font-sans whitespace-nowrap font-bold {% if b.receivable_amount > 0 %}text-rose-700{% else %}text-emerald-700{% endif %}">
                             Rs. {{ b.receivable_amount|floatformat:2|intcomma }}
                         </td>
                         <td class="px-5 py-3 text-center font-sans whitespace-nowrap text-xs">
                             {% if b.goods_condition == 'In Transit' %}
-                            <span class="inline-flex px-2 py-0.5 rounded-full text-xs font-bold bg-amber-100 text-amber-800 border border-amber-300">
+                            <span
+                                class="inline-flex px-2 py-0.5 rounded-full text-xs font-bold bg-amber-100 text-amber-800 border border-amber-300">
                                 In Transit
                             </span>
                             {% elif b.goods_condition == 'Received OK' %}
-                            <span class="inline-flex px-2 py-0.5 rounded-full text-xs font-medium bg-emerald-50 text-emerald-700 border border-emerald-200">
+                            <span
+                                class="inline-flex px-2 py-0.5 rounded-full text-xs font-medium bg-emerald-50 text-emerald-700 border border-emerald-200">
                                 Received OK
                             </span>
                             {% else %}
-                            <span class="inline-flex px-2 py-0.5 rounded-full text-xs font-bold bg-rose-50 text-rose-700 border border-rose-200">
+                            <span
+                                class="inline-flex px-2 py-0.5 rounded-full text-xs font-bold bg-rose-50 text-rose-700 border border-rose-200">
                                 {{ b.goods_condition }}
                             </span>
                             {% endif %}
@@ -682,16 +757,13 @@
                         </td>
                         <td class="px-5 py-3 text-center font-sans whitespace-nowrap text-xs">
                             {% if b.goods_condition == 'In Transit' %}
-                            <button type="button"
-                                    onclick="openArrivalModal(this)"
-                                    data-form-no="{{ b.form_no }}"
-                                    data-builty-no="{{ b.builty_no }}"
-                                    data-customer="{{ b.customer_name }}"
-                                    data-nags="{{ b.nags|default:"-" }}"
-                                    data-karachi-truck="{{ b.truck_no_karachi|default:'-' }}"
-                                    data-freight="Rs. {{ b.total_amount|floatformat:2|intcomma }}"
-                                    data-balance="Rs. {{ b.receivable_amount|floatformat:2|intcomma }}"
-                                    class="px-3 py-1.5 text-xs font-bold bg-[#0047AB] hover:bg-[#003A8C] text-white rounded-lg shadow-xs transition-all cursor-pointer">
+                            <button type="button" onclick="openArrivalModal(this)" data-form-no="{{ b.form_no }}"
+                                data-builty-no="{{ b.builty_no }}" data-customer="{{ b.customer_name }}"
+                                data-nags="{{ b.nags|default:" -" }}"
+                                data-karachi-truck="{{ b.truck_no_karachi|default:'-' }}"
+                                data-freight="Rs. {{ b.total_amount|floatformat:2|intcomma }}"
+                                data-balance="Rs. {{ b.receivable_amount|floatformat:2|intcomma }}"
+                                class="px-3 py-1.5 text-xs font-bold bg-[#0047AB] hover:bg-[#003A8C] text-white rounded-lg shadow-xs transition-all cursor-pointer">
                                 {% trans "Update Arrival" %}
                             </button>
                             {% else %}
@@ -702,7 +774,8 @@
                     {% empty %}
                     <tr>
                         <td colspan="13" class="px-6 py-10 text-center text-slate-400 font-sans">
-                            <p class="text-base font-semibold">{% trans "No builties found matching search criteria." %}</p>
+                            <p class="text-base font-semibold">{% trans "No builties found matching search criteria." %}
+                            </p>
                         </td>
                     </tr>
                     {% endfor %}
@@ -715,10 +788,12 @@
             <span class="text-slate-500">{% trans "Page" %} {{ page_obj.number }} {% trans "of" %} {{ page_obj.paginator.num_pages }}</span>
             <div class="flex items-center gap-2">
                 {% if page_obj.has_previous %}
-                <a href="?page={{ page_obj.previous_page_number }}{% if active_key %}&key={{ active_key }}{% endif %}{% if query %}&q={{ query }}{% endif %}{% if challan_status_filter %}&challan_status={{ challan_status_filter }}{% endif %}{% if status_filter %}&status={{ status_filter }}{% endif %}{% if delivery_filter %}&delivery_status={{ delivery_filter }}{% endif %}" class="px-3 py-1 border border-slate-300 rounded-2xl text-slate-600 hover:bg-slate-50">{% trans "Previous" %}</a>
+                <a href="?page={{ page_obj.previous_page_number }}{% if active_key %}&key={{ active_key }}{% endif %}{% if query %}&q={{ query }}{% endif %}{% if challan_status_filter %}&challan_status={{ challan_status_filter }}{% endif %}{% if status_filter %}&status={{ status_filter }}{% endif %}{% if delivery_filter %}&delivery_status={{ delivery_filter }}{% endif %}"
+                    class="px-3 py-1 border border-slate-300 rounded-2xl text-slate-600 hover:bg-slate-50">{% trans "Previous" %}</a>
                 {% endif %}
                 {% if page_obj.has_next %}
-                <a href="?page={{ page_obj.next_page_number }}{% if active_key %}&key={{ active_key }}{% endif %}{% if query %}&q={{ query }}{% endif %}{% if challan_status_filter %}&challan_status={{ challan_status_filter }}{% endif %}{% if status_filter %}&status={{ status_filter }}{% endif %}{% if delivery_filter %}&delivery_status={{ delivery_filter }}{% endif %}" class="px-3 py-1 border border-slate-300 rounded-2xl text-slate-600 hover:bg-slate-50">{% trans "Next" %}</a>
+                <a href="?page={{ page_obj.next_page_number }}{% if active_key %}&key={{ active_key }}{% endif %}{% if query %}&q={{ query }}{% endif %}{% if challan_status_filter %}&challan_status={{ challan_status_filter }}{% endif %}{% if status_filter %}&status={{ status_filter }}{% endif %}{% if delivery_filter %}&delivery_status={{ delivery_filter }}{% endif %}"
+                    class="px-3 py-1 border border-slate-300 rounded-2xl text-slate-600 hover:bg-slate-50">{% trans "Next" %}</a>
                 {% endif %}
             </div>
         </div>
@@ -730,12 +805,16 @@
 <!-- ====================================================================== -->
 <!-- SECTION 8 MODAL: UPDATE ARRIVAL STATUS FOR IN-TRANSIT BUILTIES         -->
 <!-- ====================================================================== -->
-<div id="arrival-status-modal" onclick="if(event.target===this) closeArrivalModal()" style="display:none;position:fixed;inset:0;z-index:60;align-items:center;justify-content:center;padding:1rem;background:rgba(15,23,42,.5)">
+<div id="arrival-status-modal" onclick="if(event.target===this) closeArrivalModal()"
+    style="display:none;position:fixed;inset:0;z-index:60;align-items:center;justify-content:center;padding:1rem;background:rgba(15,23,42,.5)">
     <div class="bg-white rounded-2xl border border-slate-200 shadow-2xl p-6 sm:p-8 max-w-lg w-full">
         <div class="flex items-center justify-between pb-4 mb-5 border-b border-slate-100">
             <h3 class="text-lg font-bold text-slate-900">{% trans "Update Goods Received Status" %}</h3>
-            <button type="button" onclick="closeArrivalModal()" class="text-slate-400 hover:text-slate-600 cursor-pointer">
-                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+            <button type="button" onclick="closeArrivalModal()"
+                class="text-slate-400 hover:text-slate-600 cursor-pointer">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                </svg>
             </button>
         </div>
 
@@ -747,27 +826,33 @@
             <div class="grid grid-cols-2 gap-4">
                 <div>
                     <label class="block text-xs font-semibold text-slate-500 uppercase mb-1">{% trans "Builty No." %}</label>
-                    <input type="text" id="modal-builty-no" readonly class="w-full h-10 px-3 text-sm bg-slate-100 text-slate-700 border border-slate-200 rounded-xl font-mono cursor-not-allowed">
+                    <input type="text" id="modal-builty-no" readonly
+                        class="w-full h-10 px-3 text-sm bg-slate-100 text-slate-700 border border-slate-200 rounded-xl font-mono cursor-not-allowed">
                 </div>
                 <div>
                     <label class="block text-xs font-semibold text-slate-500 uppercase mb-1">{% trans "Customer" %}</label>
-                    <input type="text" id="modal-customer" readonly class="w-full h-10 px-3 text-sm bg-slate-100 text-slate-700 border border-slate-200 rounded-xl cursor-not-allowed">
+                    <input type="text" id="modal-customer" readonly
+                        class="w-full h-10 px-3 text-sm bg-slate-100 text-slate-700 border border-slate-200 rounded-xl cursor-not-allowed">
                 </div>
                 <div>
                     <label class="block text-xs font-semibold text-slate-500 uppercase mb-1">{% trans "Nags" %}</label>
-                    <input type="text" id="modal-nags" readonly class="w-full h-10 px-3 text-sm bg-slate-100 text-slate-700 border border-slate-200 rounded-xl font-mono cursor-not-allowed">
+                    <input type="text" id="modal-nags" readonly
+                        class="w-full h-10 px-3 text-sm bg-slate-100 text-slate-700 border border-slate-200 rounded-xl font-mono cursor-not-allowed">
                 </div>
                 <div>
                     <label class="block text-xs font-semibold text-slate-500 uppercase mb-1">{% trans "Karachi Truck Ref" %}</label>
-                    <input type="text" id="modal-karachi-truck" readonly class="w-full h-10 px-3 text-sm bg-slate-100 text-slate-700 border border-slate-200 rounded-xl font-mono cursor-not-allowed">
+                    <input type="text" id="modal-karachi-truck" readonly
+                        class="w-full h-10 px-3 text-sm bg-slate-100 text-slate-700 border border-slate-200 rounded-xl font-mono cursor-not-allowed">
                 </div>
                 <div>
                     <label class="block text-xs font-semibold text-slate-500 uppercase mb-1">{% trans "Freight" %}</label>
-                    <input type="text" id="modal-freight" readonly class="w-full h-10 px-3 text-sm bg-slate-100 text-slate-700 border border-slate-200 rounded-xl font-mono cursor-not-allowed">
+                    <input type="text" id="modal-freight" readonly
+                        class="w-full h-10 px-3 text-sm bg-slate-100 text-slate-700 border border-slate-200 rounded-xl font-mono cursor-not-allowed">
                 </div>
                 <div>
                     <label class="block text-xs font-semibold text-slate-500 uppercase mb-1">{% trans "Balance" %}</label>
-                    <input type="text" id="modal-balance" readonly class="w-full h-10 px-3 text-sm bg-slate-100 text-slate-700 border border-slate-200 rounded-xl font-mono cursor-not-allowed">
+                    <input type="text" id="modal-balance" readonly
+                        class="w-full h-10 px-3 text-sm bg-slate-100 text-slate-700 border border-slate-200 rounded-xl font-mono cursor-not-allowed">
                 </div>
             </div>
 
@@ -776,7 +861,7 @@
                     {% trans "Goods Received Status" %} <span class="text-rose-500 font-bold">*</span>
                 </label>
                 <select name="goods_condition" id="modal-goods-condition" required
-                        class="w-full h-11 px-3 text-sm bg-white border border-slate-300 rounded-xl focus:border-[#14B8A6] outline-none font-bold text-slate-800">
+                    class="w-full h-11 px-3 text-sm bg-white border border-slate-300 rounded-xl focus:border-[#14B8A6] outline-none font-bold text-slate-800">
                     <option value="Received OK">{% trans "Received OK" %}</option>
                     <option value="Damaged">{% trans "Damaged" %}</option>
                     <option value="Lost">{% trans "Lost" %}</option>
@@ -785,10 +870,11 @@
 
             <div class="pt-4 flex items-center justify-end gap-3 border-t border-slate-100">
                 <button type="button" onclick="closeArrivalModal()"
-                        class="h-10 px-4 bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold text-sm rounded-xl cursor-pointer">
+                    class="h-10 px-4 bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold text-sm rounded-xl cursor-pointer">
                     {% trans "Cancel" %}
                 </button>
-                <button type="submit" class="h-10 px-6 bg-[#0047AB] hover:bg-[#003A8C] text-white font-semibold text-sm rounded-xl shadow-xs cursor-pointer">
+                <button type="submit"
+                    class="h-10 px-6 bg-[#0047AB] hover:bg-[#003A8C] text-white font-semibold text-sm rounded-xl shadow-xs cursor-pointer">
                     {% trans "Save Status" %}
                 </button>
             </div>
@@ -799,11 +885,15 @@
 <!-- ====================================================================== -->
 <!-- MODAL: UNSAVED FORM DATA CONFIRMATION                                  -->
 <!-- ====================================================================== -->
-<div id="unsaved-draft-modal" onclick="if(event.target===this) closeUnsavedModal()" style="display:none;position:fixed;inset:0;z-index:70;align-items:center;justify-content:center;padding:1rem;background:rgba(15,23,42,.55)">
+<div id="unsaved-draft-modal" onclick="if(event.target===this) closeUnsavedModal()"
+    style="display:none;position:fixed;inset:0;z-index:70;align-items:center;justify-content:center;padding:1rem;background:rgba(15,23,42,.55)">
     <div class="bg-white rounded-2xl border border-slate-200 shadow-2xl p-6 sm:p-8 max-w-md w-full">
         <div class="flex items-center gap-3 mb-3">
             <span class="p-2.5 bg-amber-100 text-amber-700 rounded-xl">
-                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                </svg>
             </span>
             <h3 class="text-lg font-bold text-slate-900">{% trans "Save Form Data?" %}</h3>
         </div>
@@ -812,15 +902,15 @@
         </p>
         <div class="flex items-center justify-end gap-3 pt-4 border-t border-slate-100">
             <button type="button" onclick="closeUnsavedModal()"
-                    class="h-10 px-4 bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold text-sm rounded-xl cursor-pointer">
+                class="h-10 px-4 bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold text-sm rounded-xl cursor-pointer">
                 {% trans "Cancel" %}
             </button>
             <button type="button" onclick="confirmDiscardAndLeave()"
-                    class="h-10 px-4 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 font-semibold text-sm rounded-xl cursor-pointer">
+                class="h-10 px-4 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 font-semibold text-sm rounded-xl cursor-pointer">
                 {% trans "No, Discard" %}
             </button>
             <button type="button" onclick="confirmSaveDraftAndLeave()"
-                    class="h-10 px-5 bg-[#0047AB] hover:bg-[#003A8C] text-white font-semibold text-sm rounded-xl shadow-xs cursor-pointer">
+                class="h-10 px-5 bg-[#0047AB] hover:bg-[#003A8C] text-white font-semibold text-sm rounded-xl shadow-xs cursor-pointer">
                 {% trans "Yes, Save" %}
             </button>
         </div>
@@ -869,340 +959,339 @@ function toggleCreateBuiltyDrawer() {
             drawer.style.display = 'none';
         }
     }
-}
 
-function openArrivalModal(btn) {
-    document.getElementById('modal-form-no').value = btn.dataset.formNo || '';
-    document.getElementById('modal-builty-no').value = btn.dataset.builtyNo || '';
-    document.getElementById('modal-customer').value = btn.dataset.customer || '';
-    document.getElementById('modal-nags').value = btn.dataset.nags || '';
-    document.getElementById('modal-karachi-truck').value = btn.dataset.karachiTruck || '-';
-    document.getElementById('modal-freight').value = btn.dataset.freight || '';
-    document.getElementById('modal-balance').value = btn.dataset.balance || '';
-    document.getElementById('arrival-status-modal').style.display = 'flex';
-}
-
-function closeArrivalModal() {
-    document.getElementById('arrival-status-modal').style.display = 'none';
-}
-
-/* ========================================================================== */
-/* CUSTOMER SELECT DROPDOWN WITH SEARCH BAR INSIDE                            */
-/* ========================================================================== */
-function toggleCustomerSelectMenu() {
-    const menu = document.getElementById('customer_select_menu');
-    if (!menu) return;
-    if (menu.style.display === 'none' || !menu.style.display) {
-        menu.style.display = 'block';
-        const searchInput = document.getElementById('customer_search_input');
-        if (searchInput) {
-            searchInput.value = '';
-            filterCustomerMenu('');
-            setTimeout(function () { searchInput.focus(); }, 10);
-        }
-    } else {
-        menu.style.display = 'none';
+    function openArrivalModal(btn) {
+        document.getElementById('modal-form-no').value = btn.dataset.formNo || '';
+        document.getElementById('modal-builty-no').value = btn.dataset.builtyNo || '';
+        document.getElementById('modal-customer').value = btn.dataset.customer || '';
+        document.getElementById('modal-nags').value = btn.dataset.nags || '';
+        document.getElementById('modal-karachi-truck').value = btn.dataset.karachiTruck || '-';
+        document.getElementById('modal-freight').value = btn.dataset.freight || '';
+        document.getElementById('modal-balance').value = btn.dataset.balance || '';
+        document.getElementById('arrival-status-modal').style.display = 'flex';
     }
-}
 
-function closeCustomerSelectMenu() {
-    const menu = document.getElementById('customer_select_menu');
-    if (menu) menu.style.display = 'none';
-}
+    function closeArrivalModal() {
+        document.getElementById('arrival-status-modal').style.display = 'none';
+    }
 
-function filterCustomerMenu(query) {
-    const options = document.querySelectorAll('#customer_select_options .customer-menu-option');
-    const q = (query || '').trim().toLowerCase();
-    let visible = 0;
-    options.forEach(function (opt) {
-        const hay = opt.dataset.search || '';
-        if (!q || hay.indexOf(q) !== -1) {
-            opt.style.display = 'flex';
-            visible++;
+    /* ========================================================================== */
+    /* CUSTOMER SELECT DROPDOWN WITH SEARCH BAR INSIDE                            */
+    /* ========================================================================== */
+    function toggleCustomerSelectMenu() {
+        const menu = document.getElementById('customer_select_menu');
+        if (!menu) return;
+        if (menu.style.display === 'none' || !menu.style.display) {
+            menu.style.display = 'block';
+            const searchInput = document.getElementById('customer_search_input');
+            if (searchInput) {
+                searchInput.value = '';
+                filterCustomerMenu('');
+                setTimeout(function () { searchInput.focus(); }, 10);
+            }
         } else {
-            opt.style.display = 'none';
+            menu.style.display = 'none';
         }
-    });
-    const emptyEl = document.getElementById('customer_menu_empty');
-    if (emptyEl) emptyEl.style.display = visible === 0 ? 'block' : 'none';
-}
-
-function chooseCustomerOption(btn) {
-    const hiddenInput = document.getElementById('id_customer_id');
-    const labelEl = document.getElementById('customer_select_label');
-    if (hiddenInput) hiddenInput.value = btn.dataset.id || '';
-    if (labelEl) {
-        labelEl.textContent = btn.dataset.label || '-- Select Regular Customer --';
-        labelEl.classList.remove('text-slate-500');
-        labelEl.classList.add('text-slate-900', 'font-medium');
-    }
-    closeCustomerSelectMenu();
-    if (hiddenInput && window.htmx) {
-        htmx.trigger(hiddenInput, 'change');
-    }
-}
-
-document.addEventListener('click', function (e) {
-    const wrapper = document.getElementById('customer-select-wrapper');
-    if (wrapper && !wrapper.contains(e.target)) {
-        closeCustomerSelectMenu();
-    }
-});
-
-/* ========================================================================== */
-/* DRAFT PERSISTENCE & UNSAVED CHANGES POPUP                                  */
-/* ========================================================================== */
-function getFormDraftData() {
-    if (!HAS_ACTIVE_HEADER) {
-        const truck = (document.getElementById('header_truck_no')?.value || '').trim();
-        const challan = (document.getElementById('header_challan_no')?.value || '').trim();
-        const count = (document.getElementById('header_no_of_builties')?.value || '').trim();
-        if (!truck && !challan && !count) return null;
-        return { mode: 'header', truck_no: truck, challan_no: challan, no_of_builties: count };
     }
 
-    const drawer = document.getElementById('create-builty-drawer');
-    if (!drawer || drawer.style.display === 'none') return null;
+    function closeCustomerSelectMenu() {
+        const menu = document.getElementById('customer_select_menu');
+        if (menu) menu.style.display = 'none';
+    }
 
-    const fieldIds = [
-        'id_builty_no', 'id_nags', 'id_customer_builty_no', 'id_truck_no_karachi',
-        'id_customer_type', 'id_delivery_mode', 'id_customer_id', 'customer_search_input',
-        'id_customer_name', 'id_contact_number', 'id_delivery_address',
-        'id_total_amount', 'id_advance_received', 'id_loading_charges', 'id_godam_charges',
-        'id_goods_condition', 'id_remarks'
-    ];
-    const data = { mode: 'builty', drawer_open: true };
-    let hasValue = false;
-    const meaningfulIds = [
-        'id_builty_no', 'id_nags', 'id_customer_builty_no', 'id_truck_no_karachi',
-        'id_customer_id', 'id_customer_name', 'id_contact_number', 'id_delivery_address',
-        'id_total_amount', 'id_advance_received', 'id_loading_charges', 'id_godam_charges', 'id_remarks'
-    ];
-    fieldIds.forEach(function (id) {
-        const el = document.getElementById(id);
-        if (el) {
-            data[id] = el.value;
-            if (meaningfulIds.indexOf(id) !== -1 && (el.value || '').trim() !== '') {
-                hasValue = true;
-            }
-        }
-    });
-    return hasValue ? data : null;
-}
-
-function saveDraftToStorage() {
-    const draft = getFormDraftData();
-    if (draft) {
-        try {
-            localStorage.setItem(DRAFT_STORAGE_KEY, JSON.stringify(draft));
-            if (ACTIVE_CHALLAN_KEY) {
-                localStorage.setItem(LAST_DRAFT_KEY_REF, ACTIVE_CHALLAN_KEY);
+    function filterCustomerMenu(query) {
+        const options = document.querySelectorAll('#customer_select_options .customer-menu-option');
+        const q = (query || '').trim().toLowerCase();
+        let visible = 0;
+        options.forEach(function (opt) {
+            const hay = opt.dataset.search || '';
+            if (!q || hay.indexOf(q) !== -1) {
+                opt.style.display = 'flex';
+                visible++;
             } else {
-                localStorage.removeItem(LAST_DRAFT_KEY_REF);
+                opt.style.display = 'none';
             }
-        } catch (err) {}
+        });
+        const emptyEl = document.getElementById('customer_menu_empty');
+        if (emptyEl) emptyEl.style.display = visible === 0 ? 'block' : 'none';
     }
-}
 
-function clearSavedDraft() {
-    try {
-        localStorage.removeItem(DRAFT_STORAGE_KEY);
-        if (localStorage.getItem(LAST_DRAFT_KEY_REF) === ACTIVE_CHALLAN_KEY) {
-            localStorage.removeItem(LAST_DRAFT_KEY_REF);
-        }
-    } catch (err) {}
-}
-
-function clearCurrentDraftAndReset() {
-    clearSavedDraft();
-    const banner = document.getElementById('draft-restored-banner');
-    if (banner) banner.style.display = 'none';
-    const headerForm = document.getElementById('header-entry-form');
-    if (headerForm) {
-        headerForm.reset();
-        updateTruckChallanKeyPreview();
-    }
-    const builtyForm = document.getElementById('create-builty-form');
-    if (builtyForm) {
-        builtyForm.reset();
-        const cId = document.getElementById('id_customer_id');
-        const cLabel = document.getElementById('customer_select_label');
-        if (cId) cId.value = '';
-        if (cLabel) {
-            cLabel.textContent = '-- Select Regular Customer --';
-            cLabel.classList.remove('text-slate-900', 'font-medium');
-            cLabel.classList.add('text-slate-500');
+    function chooseCustomerOption(btn) {
+        const hiddenInput = document.getElementById('id_customer_id');
+        const labelEl = document.getElementById('customer_select_label');
+        if (hiddenInput) hiddenInput.value = btn.dataset.id || '';
+        if (labelEl) {
+            labelEl.textContent = btn.dataset.label || '-- Select Regular Customer --';
+            labelEl.classList.remove('text-slate-500');
+            labelEl.classList.add('text-slate-900', 'font-medium');
         }
         closeCustomerSelectMenu();
-        if (cId && window.htmx) {
-            htmx.trigger(cId, 'change');
+        if (hiddenInput && window.htmx) {
+            htmx.trigger(hiddenInput, 'change');
         }
     }
-}
 
-function applyWalkinOrCustomerFields(draft) {
-    if (!draft) return;
-    if (draft.id_customer_type === 'Walk-in') {
-        ['id_customer_name', 'id_contact_number', 'id_delivery_address'].forEach(function (id) {
-            const el = document.getElementById(id);
-            if (el && draft[id] !== undefined) el.value = draft[id];
-        });
-    } else if (draft.id_customer_id) {
-        const selectEl = document.getElementById('id_customer_id');
-        if (selectEl) {
-            selectEl.value = draft.id_customer_id;
-            if (window.htmx) htmx.trigger(selectEl, 'change');
+    document.addEventListener('click', function (e) {
+        const wrapper = document.getElementById('customer-select-wrapper');
+        if (wrapper && !wrapper.contains(e.target)) {
+            closeCustomerSelectMenu();
         }
-    }
-}
+    });
 
-function restoreDraftFromStorage() {
-    // Clear draft if we just saved successfully
-    if (HAS_SUCCESS_CONSIGNMENT) {
-        clearSavedDraft();
-        return;
-    }
-    if (HAS_ACTIVE_HEADER) {
-        try { localStorage.removeItem('mb_receiving_draft:header'); } catch (err) {}
-    }
+    /* ========================================================================== */
+    /* DRAFT PERSISTENCE & UNSAVED CHANGES POPUP                                  */
+    /* ========================================================================== */
+    function getFormDraftData() {
+        if (!HAS_ACTIVE_HEADER) {
+            const truck = (document.getElementById('header_truck_no')?.value || '').trim();
+            const challan = (document.getElementById('header_challan_no')?.value || '').trim();
+            const count = (document.getElementById('header_no_of_builties')?.value || '').trim();
+            if (!truck && !challan && !count) return null;
+            return { mode: 'header', truck_no: truck, challan_no: challan, no_of_builties: count };
+        }
 
-    // If user returned to base Consignment Receiving URL and had a saved builty draft on a specific challan, redirect back to it
-    if (!ACTIVE_CHALLAN_KEY && !HAS_QUERY_FILTERS) {
-        try {
-            const lastKey = localStorage.getItem(LAST_DRAFT_KEY_REF);
-            if (lastKey && localStorage.getItem('mb_receiving_draft:' + lastKey)) {
-                isNavigatingAway = true;
-                window.location.href = "{% url 'receivables:form1_receiving' %}?key=" + encodeURIComponent(lastKey);
-                return;
-            }
-        } catch (err) {}
-    }
-
-    let raw = null;
-    try { raw = localStorage.getItem(DRAFT_STORAGE_KEY); } catch (err) {}
-    if (!raw) return;
-
-    let draft = null;
-    try { draft = JSON.parse(raw); } catch (err) { return; }
-    if (!draft) return;
-
-    if (draft.mode === 'header' && !HAS_ACTIVE_HEADER) {
-        if (document.getElementById('header_truck_no')) document.getElementById('header_truck_no').value = draft.truck_no || '';
-        if (document.getElementById('header_challan_no')) document.getElementById('header_challan_no').value = draft.challan_no || '';
-        if (document.getElementById('header_no_of_builties')) document.getElementById('header_no_of_builties').value = draft.no_of_builties || '';
-        updateTruckChallanKeyPreview();
-        const banner = document.getElementById('draft-restored-banner');
-        if (banner) banner.style.display = 'flex';
-    } else if (draft.mode === 'builty' && HAS_ACTIVE_HEADER) {
         const drawer = document.getElementById('create-builty-drawer');
-        if (drawer) drawer.style.display = 'block';
+        if (!drawer || drawer.style.display === 'none') return null;
 
-        const simpleIds = [
+        const fieldIds = [
             'id_builty_no', 'id_nags', 'id_customer_builty_no', 'id_truck_no_karachi',
+            'id_customer_type', 'id_delivery_mode', 'id_customer_id', 'customer_search_input',
+            'id_customer_name', 'id_contact_number', 'id_delivery_address',
             'id_total_amount', 'id_advance_received', 'id_loading_charges', 'id_godam_charges',
             'id_goods_condition', 'id_remarks'
         ];
-        simpleIds.forEach(function (id) {
+        const data = { mode: 'builty', drawer_open: true };
+        let hasValue = false;
+        const meaningfulIds = [
+            'id_builty_no', 'id_nags', 'id_customer_builty_no', 'id_truck_no_karachi',
+            'id_customer_id', 'id_customer_name', 'id_contact_number', 'id_delivery_address',
+            'id_total_amount', 'id_advance_received', 'id_loading_charges', 'id_godam_charges', 'id_remarks'
+        ];
+        fieldIds.forEach(function (id) {
             const el = document.getElementById(id);
-            if (el && draft[id] !== undefined) el.value = draft[id];
+            if (el) {
+                data[id] = el.value;
+                if (meaningfulIds.indexOf(id) !== -1 && (el.value || '').trim() !== '') {
+                    hasValue = true;
+                }
+            }
         });
+        return hasValue ? data : null;
+    }
 
-        const typeEl = document.getElementById('id_customer_type');
-        const modeEl = document.getElementById('id_delivery_mode');
-        const needsSwap = (typeEl && draft.id_customer_type && typeEl.value !== draft.id_customer_type) ||
-                          (modeEl && draft.id_delivery_mode && modeEl.value !== draft.id_delivery_mode);
+    function saveDraftToStorage() {
+        const draft = getFormDraftData();
+        if (draft) {
+            try {
+                localStorage.setItem(DRAFT_STORAGE_KEY, JSON.stringify(draft));
+                if (ACTIVE_CHALLAN_KEY) {
+                    localStorage.setItem(LAST_DRAFT_KEY_REF, ACTIVE_CHALLAN_KEY);
+                } else {
+                    localStorage.removeItem(LAST_DRAFT_KEY_REF);
+                }
+            } catch (err) { }
+        }
+    }
 
-        if (typeEl && draft.id_customer_type) typeEl.value = draft.id_customer_type;
-        if (modeEl && draft.id_delivery_mode) modeEl.value = draft.id_delivery_mode;
+    function clearSavedDraft() {
+        try {
+            localStorage.removeItem(DRAFT_STORAGE_KEY);
+            if (localStorage.getItem(LAST_DRAFT_KEY_REF) === ACTIVE_CHALLAN_KEY) {
+                localStorage.removeItem(LAST_DRAFT_KEY_REF);
+            }
+        } catch (err) { }
+    }
 
-        if (needsSwap && typeEl && window.htmx) {
-            pendingDraftToRestore = draft;
-            htmx.trigger(typeEl, 'change');
-        } else {
-            applyWalkinOrCustomerFields(draft);
+    function clearCurrentDraftAndReset() {
+        clearSavedDraft();
+        const banner = document.getElementById('draft-restored-banner');
+        if (banner) banner.style.display = 'none';
+        const headerForm = document.getElementById('header-entry-form');
+        if (headerForm) {
+            headerForm.reset();
+            updateTruckChallanKeyPreview();
+        }
+        const builtyForm = document.getElementById('create-builty-form');
+        if (builtyForm) {
+            builtyForm.reset();
+            const cId = document.getElementById('id_customer_id');
+            const cLabel = document.getElementById('customer_select_label');
+            if (cId) cId.value = '';
+            if (cLabel) {
+                cLabel.textContent = '-- Select Regular Customer --';
+                cLabel.classList.remove('text-slate-900', 'font-medium');
+                cLabel.classList.add('text-slate-500');
+            }
+            closeCustomerSelectMenu();
+            if (cId && window.htmx) {
+                htmx.trigger(cId, 'change');
+            }
+        }
+    }
+
+    function applyWalkinOrCustomerFields(draft) {
+        if (!draft) return;
+        if (draft.id_customer_type === 'Walk-in') {
+            ['id_customer_name', 'id_contact_number', 'id_delivery_address'].forEach(function (id) {
+                const el = document.getElementById(id);
+                if (el && draft[id] !== undefined) el.value = draft[id];
+            });
+        } else if (draft.id_customer_id) {
+            const selectEl = document.getElementById('id_customer_id');
+            if (selectEl) {
+                selectEl.value = draft.id_customer_id;
+                if (window.htmx) htmx.trigger(selectEl, 'change');
+            }
+        }
+    }
+
+    function restoreDraftFromStorage() {
+        // Clear draft if we just saved successfully
+        if (HAS_SUCCESS_CONSIGNMENT) {
+            clearSavedDraft();
+            return;
+        }
+        if (HAS_ACTIVE_HEADER) {
+            try { localStorage.removeItem('mb_receiving_draft:header'); } catch (err) { }
         }
 
-        const totalEl = document.getElementById('id_total_amount');
-        if (totalEl && window.htmx) htmx.trigger(totalEl, 'change');
-
-        const banner = document.getElementById('draft-restored-banner');
-        if (banner) banner.style.display = 'flex';
-    }
-}
-
-document.body.addEventListener('htmx:afterSwap', function (evt) {
-    if (evt.detail && evt.detail.target && evt.detail.target.id === 'customer-fields-container' && pendingDraftToRestore) {
-        const draft = pendingDraftToRestore;
-        pendingDraftToRestore = null;
-        applyWalkinOrCustomerFields(draft);
-    }
-});
-
-function closeUnsavedModal() {
-    pendingNavUrl = null;
-    document.getElementById('unsaved-draft-modal').style.display = 'none';
-}
-
-function confirmSaveDraftAndLeave() {
-    saveDraftToStorage();
-    isNavigatingAway = true;
-    const url = pendingNavUrl;
-    closeUnsavedModal();
-    if (url) window.location.href = url;
-}
-
-function confirmDiscardAndLeave() {
-    clearSavedDraft();
-    isNavigatingAway = true;
-    const url = pendingNavUrl;
-    closeUnsavedModal();
-    if (url) window.location.href = url;
-}
-
-document.addEventListener('DOMContentLoaded', function () {
-    restoreDraftFromStorage();
-
-    // Mark form submissions so we don't prompt on normal Save
-    ['header-entry-form', 'create-builty-form'].forEach(function (formId) {
-        const f = document.getElementById(formId);
-        if (f) {
-            f.addEventListener('submit', function (e) {
-                if (formId === 'create-builty-form') {
-                    const cType = document.getElementById('id_customer_type');
-                    const cId = document.getElementById('id_customer_id');
-                    if (cType && cType.value === 'Regular' && cId && !cId.value) {
-                        e.preventDefault();
-                        const trigger = document.getElementById('customer_select_trigger');
-                        if (trigger) trigger.focus();
-                        toggleCustomerSelectMenu();
-                        return;
-                    }
+        // If user returned to base Consignment Receiving URL and had a saved builty draft on a specific challan, redirect back to it
+        if (!ACTIVE_CHALLAN_KEY && !HAS_QUERY_FILTERS) {
+            try {
+                const lastKey = localStorage.getItem(LAST_DRAFT_KEY_REF);
+                if (lastKey && localStorage.getItem('mb_receiving_draft:' + lastKey)) {
+                    isNavigatingAway = true;
+                    window.location.href = "{% url 'receivables:form1_receiving' %}?key=" + encodeURIComponent(lastKey);
+                    return;
                 }
-                isNavigatingAway = true;
+            } catch (err) { }
+        }
+
+        let raw = null;
+        try { raw = localStorage.getItem(DRAFT_STORAGE_KEY); } catch (err) { }
+        if (!raw) return;
+
+        let draft = null;
+        try { draft = JSON.parse(raw); } catch (err) { return; }
+        if (!draft) return;
+
+        if (draft.mode === 'header' && !HAS_ACTIVE_HEADER) {
+            if (document.getElementById('header_truck_no')) document.getElementById('header_truck_no').value = draft.truck_no || '';
+            if (document.getElementById('header_challan_no')) document.getElementById('header_challan_no').value = draft.challan_no || '';
+            if (document.getElementById('header_no_of_builties')) document.getElementById('header_no_of_builties').value = draft.no_of_builties || '';
+            updateTruckChallanKeyPreview();
+            const banner = document.getElementById('draft-restored-banner');
+            if (banner) banner.style.display = 'flex';
+        } else if (draft.mode === 'builty' && HAS_ACTIVE_HEADER) {
+            const drawer = document.getElementById('create-builty-drawer');
+            if (drawer) drawer.style.display = 'block';
+
+            const simpleIds = [
+                'id_builty_no', 'id_nags', 'id_customer_builty_no', 'id_truck_no_karachi',
+                'id_total_amount', 'id_advance_received', 'id_loading_charges', 'id_godam_charges',
+                'id_goods_condition', 'id_remarks'
+            ];
+            simpleIds.forEach(function (id) {
+                const el = document.getElementById(id);
+                if (el && draft[id] !== undefined) el.value = draft[id];
             });
+
+            const typeEl = document.getElementById('id_customer_type');
+            const modeEl = document.getElementById('id_delivery_mode');
+            const needsSwap = (typeEl && draft.id_customer_type && typeEl.value !== draft.id_customer_type) ||
+                (modeEl && draft.id_delivery_mode && modeEl.value !== draft.id_delivery_mode);
+
+            if (typeEl && draft.id_customer_type) typeEl.value = draft.id_customer_type;
+            if (modeEl && draft.id_delivery_mode) modeEl.value = draft.id_delivery_mode;
+
+            if (needsSwap && typeEl && window.htmx) {
+                pendingDraftToRestore = draft;
+                htmx.trigger(typeEl, 'change');
+            } else {
+                applyWalkinOrCustomerFields(draft);
+            }
+
+            const totalEl = document.getElementById('id_total_amount');
+            if (totalEl && window.htmx) htmx.trigger(totalEl, 'change');
+
+            const banner = document.getElementById('draft-restored-banner');
+            if (banner) banner.style.display = 'flex';
+        }
+    }
+
+    document.body.addEventListener('htmx:afterSwap', function (evt) {
+        if (evt.detail && evt.detail.target && evt.detail.target.id === 'customer-fields-container' && pendingDraftToRestore) {
+            const draft = pendingDraftToRestore;
+            pendingDraftToRestore = null;
+            applyWalkinOrCustomerFields(draft);
         }
     });
 
-    // Intercept clicks on sidebar tabs and navigation links when unsaved form data exists
-    document.addEventListener('click', function (e) {
-        const link = e.target.closest('a[href]');
-        if (!link) return;
-        const href = link.getAttribute('href') || '';
-        if (!href || href.startsWith('#') || href.startsWith('javascript:')) return;
-        if (link.target === '_blank' || e.ctrlKey || e.metaKey || e.shiftKey) return;
+    function closeUnsavedModal() {
+        pendingNavUrl = null;
+        document.getElementById('unsaved-draft-modal').style.display = 'none';
+    }
 
-        // If user clicks "New Truck-Challan" without unsaved data, clear last draft key so it starts fresh
-        if (href === "{% url 'receivables:form1_receiving' %}" && ACTIVE_CHALLAN_KEY && !getFormDraftData()) {
-            try { localStorage.removeItem(LAST_DRAFT_KEY_REF); } catch (err) {}
-            return;
-        }
+    function confirmSaveDraftAndLeave() {
+        saveDraftToStorage();
+        isNavigatingAway = true;
+        const url = pendingNavUrl;
+        closeUnsavedModal();
+        if (url) window.location.href = url;
+    }
 
-        if (!isNavigatingAway && getFormDraftData()) {
-            e.preventDefault();
-            pendingNavUrl = link.href;
-            document.getElementById('unsaved-draft-modal').style.display = 'flex';
-        }
-    }, true);
-});
+    function confirmDiscardAndLeave() {
+        clearSavedDraft();
+        isNavigatingAway = true;
+        const url = pendingNavUrl;
+        closeUnsavedModal();
+        if (url) window.location.href = url;
+    }
+
+    document.addEventListener('DOMContentLoaded', function () {
+        restoreDraftFromStorage();
+
+        // Mark form submissions so we don't prompt on normal Save
+        ['header-entry-form', 'create-builty-form'].forEach(function (formId) {
+            const f = document.getElementById(formId);
+            if (f) {
+                f.addEventListener('submit', function (e) {
+                    if (formId === 'create-builty-form') {
+                        const cType = document.getElementById('id_customer_type');
+                        const cId = document.getElementById('id_customer_id');
+                        if (cType && cType.value === 'Regular' && cId && !cId.value) {
+                            e.preventDefault();
+                            const trigger = document.getElementById('customer_select_trigger');
+                            if (trigger) trigger.focus();
+                            toggleCustomerSelectMenu();
+                            return;
+                        }
+                    }
+                    isNavigatingAway = true;
+                });
+            }
+        });
+
+        // Intercept clicks on sidebar tabs and navigation links when unsaved form data exists
+        document.addEventListener('click', function (e) {
+            const link = e.target.closest('a[href]');
+            if (!link) return;
+            const href = link.getAttribute('href') || '';
+            if (!href || href.startsWith('#') || href.startsWith('javascript:')) return;
+            if (link.target === '_blank' || e.ctrlKey || e.metaKey || e.shiftKey) return;
+
+            // If user clicks "New Truck-Challan" without unsaved data, clear last draft key so it starts fresh
+            if (href === "{% url 'receivables:form1_receiving' %}" && ACTIVE_CHALLAN_KEY && !getFormDraftData()) {
+                try { localStorage.removeItem(LAST_DRAFT_KEY_REF); } catch (err) { }
+                return;
+            }
+
+            if (!isNavigatingAway && getFormDraftData()) {
+                e.preventDefault();
+                pendingNavUrl = link.href;
+                document.getElementById('unsaved-draft-modal').style.display = 'flex';
+            }
+        }, true);
+    });
 </script>
 {% endblock %}

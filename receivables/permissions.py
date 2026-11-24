@@ -14,18 +14,23 @@ def user_has_any_role(user, role_names):
     return bool(user_groups.intersection(set(role_names)))
 
 
-def role_required(allowed_roles):
+def role_required(allowed_roles, require_login=True):
     """
     Decorator for views to enforce Django Group membership.
-    If the user lacks required role, raises PermissionDenied (403).
+    If the user is authenticated and lacks required role, raises PermissionDenied (403).
+    When require_login=False, unauthenticated users are allowed direct access (consistent
+    with Form 1, Customer Master, and Audit Trail), while authenticated users are still
+    checked against allowed_roles.
     """
     def decorator(view_func):
         @wraps(view_func)
         def _wrapped_view(request, *args, **kwargs):
             if not request.user.is_authenticated:
-                return redirect('login')
+                if require_login:
+                    return redirect('login')
+                return view_func(request, *args, **kwargs)
 
-            if request.user.is_superuser or 'Admin' in allowed_roles and request.user.groups.filter(name='Admin').exists():
+            if request.user.is_superuser or ('Admin' in allowed_roles and request.user.groups.filter(name='Admin').exists()):
                 return view_func(request, *args, **kwargs)
 
             user_groups = set(request.user.groups.values_list('name', flat=True))
