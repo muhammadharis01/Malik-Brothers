@@ -1074,6 +1074,16 @@ class AllScenariosEndToEndTests(TestCase):
         self.assertContains(r4, 'KHI-GRID-DMG')
         self.assertNotContains(r4, 'KHI-GRID-OK')
 
+    def test_unknown_url_renders_custom_branded_404(self):
+        """Invalid URLs return custom 404 matching the portal theme without leaking framework details."""
+        resp = self.client.get('/this-page-does-not-exist/')
+        self.assertEqual(resp.status_code, 404)
+        self.assertContains(resp, 'Page Not Found', status_code=404)
+        self.assertContains(resp, 'MALIK BROTHERS', status_code=404)
+        self.assertNotContains(resp, 'URLconf', status_code=404)
+        self.assertNotContains(resp, 'Django', status_code=404)
+
+
 
 
 
